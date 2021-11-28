@@ -1,7 +1,7 @@
 /*
  * wordsearch.c
  * 
- * Copyright 2021 Andy <andy400-dev@yahoo.com>
+ * Copyright 2021 Andy Alt <andy400-dev@yahoo.com>
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -204,6 +204,66 @@ int diaganol_down_left (const int len, const char *str, char puzzle[][GRID_SIZE]
   return 0;
 }
 
+int diaganol_up_left (const int len, const char *str, char puzzle[][GRID_SIZE])
+{
+  //int col = (rand() % (GRID_SIZE - len)) + len;
+  int col = (rand() % (GRID_SIZE - len)) + len ;
+  int row = (rand() % (GRID_SIZE - len)) + len;
+  const int row_orig = row;
+  const int col_orig = col;
+  char *ptr = (char *)str;
+  while (*ptr != '\0')
+  {
+    if (check (row, col, puzzle, *ptr) == false)
+      return -1;
+    ptr++;
+    col--;
+    row--;
+  }
+
+  col = col_orig;
+  row = row_orig;
+  ptr = (char *)str;
+  while (*ptr != '\0')
+  {
+    place (row, col, puzzle, *ptr);
+    ptr++;
+    col--;
+    row--;
+  }
+  return 0;
+}
+
+int diaganol_up_right (const int len, const char *str, char puzzle[][GRID_SIZE])
+{
+  int col = rand() % (GRID_SIZE - len);
+  int row = (rand() % (GRID_SIZE - len)) + len;
+  const int row_orig = row;
+  const int col_orig = col;
+  char *ptr = (char *)str;
+  while (*ptr != '\0')
+  {
+    if (check (row, col, puzzle, *ptr) == false)
+      return -1;
+    ptr++;
+    col++;
+    row--;
+  }
+
+  col = col_orig;
+  row = row_orig;
+  ptr = (char *)str;
+  while (*ptr != '\0')
+  {
+    place (row, col, puzzle, *ptr);
+    ptr++;
+    col++;
+    row--;
+  }
+  return 0;
+}
+
+
 const char *strings[] = {
   "received",
   "software",
@@ -275,77 +335,72 @@ int main(int argc, char **argv)
   // Create an array of function pointers
   int (*direction_arr[])(const int, const char*, char(*)[GRID_SIZE]) = {
     horizontal,
-    horizontal_backward
+    horizontal_backward,
+    vertical,
+    vertical_up,
+    diaganol_down_left,
+    diaganol_down_right,
+    diaganol_up_left,
+    diaganol_up_right
   };
   /* seed the random number generator */
   srand (time (NULL));
 
   int n_string = 0;
   int tries = 0;
-  int r = 0;
   while (strings[n_string] != NULL)
   {
     const int len = strlen (strings[n_string]);
-    if (len > GRID_SIZE)
+    if (len > (GRID_SIZE - 2)) // skip the word if it exceeds this value
     {
       n_string++;
       continue;
     }
     
-    int rnd;
-
     const int max_tries = GRID_SIZE * 4;
     // The word will be skipped if a place can't be found
     for (tries = 0; tries < max_tries; tries++)
     {
+      int rnd;
       // After n number of tries, try different directions.
       if (tries == 0 || tries > max_tries/2)
-        rnd = rand () % 6;
-      //int rnd = 6;
-      switch (rnd)
       {
-        case HORIZONTAL:
-          r = horizontal (len, strings[n_string], puzzle);
-          break;
-        case HORIZONTAL_BACKWARD:
-          r = horizontal_backward (len, strings[n_string], puzzle);
-          break;
-        case VERTICAL:
-          r = vertical (len, strings[n_string], puzzle);
-          break;
-        case VERTICAL_UP:
-          r = vertical_up (len, strings[n_string], puzzle);
-          break;
-        case DIAGANOL_DOWN_LEFT:
-          r = diaganol_down_left (len, strings[n_string], puzzle);
-          break;
-        case DIAGANOL_DOWN_RIGHT:
-          r = diaganol_down_right (len, strings[n_string], puzzle);
-          break;
+        rnd = rand () % directions;
+        // rnd = 7;
       }
+
+      int r = direction_arr[rnd] (len, strings[n_string], puzzle);
+      
       if (r == 0)
         break;
     }
     n_string++;
   }
 
-  ///* Fill in any unused spots with random letters */
-  //for (i = 0; i < GRID_SIZE; i++)
-  //{
-    //for (j = 0; j < GRID_SIZE; j++)
-    //{
-      //if (puzzle[i][j] == '_')
-        //puzzle[i][j] = (rand () % (90 - 65 + 1)) + 65;
-    //}
-  //}
+  /* Fill in any unused spots with random letters */
+  for (i = 0; i < GRID_SIZE; i++)
+  {
+    for (j = 0; j < GRID_SIZE; j++)
+    {
+      if (puzzle[i][j] == '_')
+        puzzle[i][j] = (rand () % (90 - 65 + 1)) + 65;
+    }
+  }
 
   for (i = 0; i < GRID_SIZE; i++)
   {
     for (j = 0; j < GRID_SIZE; j++)
     {
-      printf ("'%c'", puzzle[i][j]);
+      printf ("%c ", puzzle[i][j]);
     }
-    printf ("  | %d\n", i);
+    puts ("");
+  }
+
+  i = 0;
+  while (strings[i] != NULL)
+  {
+    printf ("%s\t", strings[i]);
+    i++;
   }
   
   return 0;
