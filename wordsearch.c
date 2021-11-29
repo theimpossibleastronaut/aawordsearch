@@ -1,8 +1,8 @@
 /*
  * wordsearch.c
- * 
+ *
  * Copyright 2021 Andy Alt <andy400-dev@yahoo.com>
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 3 of the License, or
@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  */
 
 #include <stdio.h>
@@ -40,6 +40,8 @@ const char HOST[] = "random-word-api.herokuapp.com";
 const char PAGE[] = "word";
 const char PROTOCOL[] = "http";
 
+const char fill_char = '-';
+
 
 // Most of the network code and fail function was pinched and adapted from
 // https://www.lemoda.net/c/fetch-web-page/
@@ -62,8 +64,35 @@ static void fail (int test, const char * format, ...)
   }
 }
 
-static int get_word (int s, char *str)
+static int get_word (char *str)
 {
+  struct addrinfo hints, *res, *res0;
+  int error;
+  /* "s" is the file descriptor of the socket. */
+  int s;
+
+  memset (&hints, 0, sizeof (hints));
+  /* Don't specify what type of internet connection. */
+  hints.ai_family = PF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+  error = getaddrinfo (HOST, PROTOCOL, & hints, & res0);
+  fail (error, gai_strerror (error));
+  s = -1;
+  for (res = res0; res; res = res->ai_next)
+  {
+    s = socket (res->ai_family, res->ai_socktype, res->ai_protocol);
+    fail (s < 0, "socket: %s\n", strerror (errno));
+    if (connect (s, res->ai_addr, res->ai_addrlen) < 0)
+    {
+      fprintf (stderr, "connect: %s\n", strerror (errno));
+      close (s);
+      exit (EXIT_FAILURE);
+    }
+    break;
+  }
+
+  freeaddrinfo(res0);
+
   /* "format" is the format of the HTTP request we send to the web
      server. */
 
@@ -94,25 +123,35 @@ User-Agent: https://github.com/theimpossibleastronaut/wordsearch\r\n\
 
   fail (status == -1, "send failed: %s\n", strerror (errno));
 
-  /* The number of bytes received. */
-  int bytes;
   /* Our receiving buffer. */
   char buf[BUFSIZ+10];
   /* Get "BUFSIZ" bytes from "s". */
-  bytes = recvfrom (s, buf, BUFSIZ, 0, 0, 0);
+  int bytes = recv (s, buf, BUFSIZ, 0);
+  int r = close (s);
+
+  if (bytes <= 0)
+    return -1;
+
+  if (r != 0)
+  {
+    fputs ("Error closing socket\n", stderr);
+    return -1;
+  }
+
   fail (bytes == -1, "%s\n", strerror (errno));
   /* Nul-terminate the string before printing. */
   buf[bytes] = '\0';
 
   const char open_bracket[] = "[\"";
   const char closed_bracket[] = "\"]";
+  const char *str_not_found = "Expected '%s' not found in string\n";
   char *buf_start = strstr (buf, open_bracket);
 
   if (buf_start != NULL)
     buf_start += strlen (open_bracket);
   else
   {
-    fprintf (stderr, "Expected '%s' not found in string", open_bracket);
+    fprintf (stderr, str_not_found, open_bracket);
     return -1;
   }
 
@@ -121,7 +160,7 @@ User-Agent: https://github.com/theimpossibleastronaut/wordsearch\r\n\
     *buf_end = '\0';
   else
   {
-    fprintf (stderr, "Expected '%s' not found in string", closed_bracket);
+    fprintf (stderr, str_not_found, closed_bracket);
     return -1;
   }
 
@@ -133,7 +172,7 @@ User-Agent: https://github.com/theimpossibleastronaut/wordsearch\r\n\
 int check (const int row, const int col, const char puzzle[][GRID_SIZE], const char c)
 {
   const int u = toupper (c);
-  if (u == puzzle[row][col] || puzzle[row][col] == '_')
+  if (u == puzzle[row][col] || puzzle[row][col] == fill_char)
     return 0;
 
   return -1;
@@ -145,7 +184,7 @@ void place (const int row, const int col, char puzzle[][GRID_SIZE], const char c
   return;
 }
 
-int horizontal (const int len, const char *str, char puzzle[][GRID_SIZE])
+static int horizontal (const int len, const char *str, char puzzle[][GRID_SIZE])
 {
   int col = rand() % (GRID_SIZE - len);
   const int row = rand() % GRID_SIZE;
@@ -155,7 +194,7 @@ int horizontal (const int len, const char *str, char puzzle[][GRID_SIZE])
   {
     if (check (row, col, puzzle, *ptr) == -1)
       return -1;
-    
+
     ptr++;
     col++;
   }
@@ -171,7 +210,7 @@ int horizontal (const int len, const char *str, char puzzle[][GRID_SIZE])
   return 0;
 }
 
-int horizontal_backward (const int len, const char *str, char puzzle[][GRID_SIZE])
+static int horizontal_backward (const int len, const char *str, char puzzle[][GRID_SIZE])
 {
   int col = (rand() % (GRID_SIZE - len)) + len ;
   const int row = rand () % GRID_SIZE;
@@ -196,7 +235,7 @@ int horizontal_backward (const int len, const char *str, char puzzle[][GRID_SIZE
   return 0;
 }
 
-int vertical (const int len,  const char *str, char puzzle[][GRID_SIZE])
+static int vertical (const int len,  const char *str, char puzzle[][GRID_SIZE])
 {
   int row = rand() % (GRID_SIZE - len);
   const int col = rand () % GRID_SIZE;
@@ -221,7 +260,7 @@ int vertical (const int len,  const char *str, char puzzle[][GRID_SIZE])
   return 0;
 }
 
-int vertical_up (const int len, const char *str, char puzzle[][GRID_SIZE])
+static int vertical_up (const int len, const char *str, char puzzle[][GRID_SIZE])
 {
   int row = (rand() % (GRID_SIZE - len)) + len;
   const int col = rand () % GRID_SIZE;
@@ -247,7 +286,7 @@ int vertical_up (const int len, const char *str, char puzzle[][GRID_SIZE])
 }
 
 
-int diaganol_down_right (const int len, const char *str, char puzzle[][GRID_SIZE])
+static int diaganol_down_right (const int len, const char *str, char puzzle[][GRID_SIZE])
 {
   int row = (rand() % (GRID_SIZE - len));
   int col = (rand() % (GRID_SIZE - len));
@@ -276,7 +315,7 @@ int diaganol_down_right (const int len, const char *str, char puzzle[][GRID_SIZE
   return 0;
 }
 
-int diaganol_down_left (const int len, const char *str, char puzzle[][GRID_SIZE])
+static int diaganol_down_left (const int len, const char *str, char puzzle[][GRID_SIZE])
 {
   int col = (rand() % (GRID_SIZE - len)) + len;
   int row = (rand() % (GRID_SIZE - len));
@@ -305,7 +344,7 @@ int diaganol_down_left (const int len, const char *str, char puzzle[][GRID_SIZE]
   return 0;
 }
 
-int diaganol_up_left (const int len, const char *str, char puzzle[][GRID_SIZE])
+static int diaganol_up_left (const int len, const char *str, char puzzle[][GRID_SIZE])
 {
   //int col = (rand() % (GRID_SIZE - len)) + len;
   int col = (rand() % (GRID_SIZE - len)) + len ;
@@ -335,7 +374,7 @@ int diaganol_up_left (const int len, const char *str, char puzzle[][GRID_SIZE])
   return 0;
 }
 
-int diaganol_up_right (const int len, const char *str, char puzzle[][GRID_SIZE])
+static int diaganol_up_right (const int len, const char *str, char puzzle[][GRID_SIZE])
 {
   int col = rand() % (GRID_SIZE - len);
   int row = (rand() % (GRID_SIZE - len)) + len;
@@ -364,8 +403,8 @@ int diaganol_up_right (const int len, const char *str, char puzzle[][GRID_SIZE])
   return 0;
 }
 
-
-//const char *strings[] = {
+/* TODO: To not punish the word server, use this for debugging */
+//const char *words[] = {
   //"received",
   //"software",
   //"purpose",
@@ -395,40 +434,29 @@ int diaganol_up_right (const int len, const char *str, char puzzle[][GRID_SIZE])
 
 // const size_t n_strings = sizeof(strings)/sizeof(strings[0]);
 
-enum {
-  HORIZONTAL,
-  HORIZONTAL_BACKWARD,
-  VERTICAL,
-  VERTICAL_UP,
-  DIAGANOL_DOWN_RIGHT,
-  DIAGANOL_DOWN_LEFT,
-  DIAGANOL_UP_RIGHT,
-  DIAGANOL_UP_LEFT
-};
-
-const int directions = 8;
-
 int main(int argc, char **argv)
 {
+  const int directions = 8;
+
   char puzzle[GRID_SIZE][GRID_SIZE];
   const int max_words_target = GRID_SIZE;
   char words[max_words_target][BUFSIZ];
   // const size_t n_max_words = sizeof(words)/sizeof(words[0]);
-    
+
   int i = 0;
   int j = 0;
 
   for (i = 0; i < max_words_target; i++)
   {
-    words[i][0] = '\0';
+    *words[i] = '\0';
   }
 
-  /* initialize the puzzle with NULLs */
+  /* initialize the puzzle with fill_char */
   for (i = 0; i < GRID_SIZE; i++)
   {
     for (j = 0; j < GRID_SIZE; j++)
     {
-      puzzle[i][j] = '_';
+      puzzle[i][j] = fill_char;
     }
   }
 
@@ -443,63 +471,48 @@ int main(int argc, char **argv)
     diaganol_up_left,
     diaganol_up_right
   };
-  /* seed the random number generator */
-  srand (time (NULL));
 
+  /* seed the random number generator */
+  const long unsigned int seed = time(NULL);
+  srand (seed);
+
+  const int max_len = GRID_SIZE - 2;
   int n_string = 0;
   int tries = 0;
-  printf ("Attempting to fetching %d from %s...", max_words_target, HOST);
-  while (n_string < max_words_target)
+  // this probably means the word server is having issues. If this number is exceeded,
+  // we'll quit completely
+  const int max_tot_err_allowed = 10;
+  int n_tot_err = 0;
+  printf ("Attempting to fetch %d from %s...\n", max_words_target, HOST);
+  while ((n_string < max_words_target) && n_tot_err < max_tot_err_allowed)
   {
     int t = 0;
     int r = -1;
     while (t < 3 && r == -1)
     {
-      struct addrinfo hints, *res, *res0;
-      int error;
-      /* "s" is the file descriptor of the socket. */
-      int s;
-    
-      memset (&hints, 0, sizeof (hints));
-      /* Don't specify what type of internet connection. */
-      hints.ai_family = PF_UNSPEC;
-      hints.ai_socktype = SOCK_STREAM;
-      error = getaddrinfo (HOST, PROTOCOL, & hints, & res0);
-      fail (error, gai_strerror (error));
-      s = -1;
-      for (res = res0; res; res = res->ai_next)
-      {
-        s = socket (res->ai_family, res->ai_socktype, res->ai_protocol);
-        fail (s < 0, "socket: %s\n", strerror (errno));
-        if (connect (s, res->ai_addr, res->ai_addrlen) < 0)
-        {
-          fprintf (stderr, "connect: %s\n", strerror (errno));
-          close (s);
-          exit (EXIT_FAILURE);
-        }
-        break;
-      }
-    
-      freeaddrinfo(res0);
-      r = get_word (s, words[n_string]);
+      r = get_word (words[n_string]);
       t++;
+      if (r != 0)
+        n_tot_err++;
     }
 
-    if (r == -1)
+    if (r != 0)
     {
       fputs ("Failed to get word from server\n", stderr);
-      return -1;
-    }
-
-    printf ("%s\n", words[n_string]);
-          
-    const int len = strlen (words[n_string]);
-    if (len > (GRID_SIZE - 2)) // skip the word if it exceeds this value
-    {
-      n_string++;
+      *words[n_string] = '\0';
       continue;
     }
-    
+
+    const int len = strlen (words[n_string]);
+    if (len > max_len) // skip the word if it exceeds this value
+    {
+      printf ("word '%s' exceeded max length\n", words[n_string]);
+      *words[n_string] = '\0';
+      continue;
+    }
+
+    printf ("%d.) %s\n", n_string + 1, words[n_string]);
+
     const int max_tries = GRID_SIZE * 4;
     // The word will be skipped if a place can't be found
     for (tries = 0; tries < max_tries; tries++)
@@ -513,23 +526,30 @@ int main(int argc, char **argv)
       }
 
       r = direction_arr[rnd] (len, words[n_string], puzzle);
-      
+
       if (r == 0)
         break;
     }
-    n_string++;
-  }
 
-  /* Fill in any unused spots with random letters */
-  for (i = 0; i < GRID_SIZE; i++)
-  {
-    for (j = 0; j < GRID_SIZE; j++)
+    if (r == 0)
     {
-      if (puzzle[i][j] == '_')
-        puzzle[i][j] = (rand () % (90 - 65 + 1)) + 65;
+      n_string++;
+    }
+    else
+    {
+      n_tot_err++;
+      printf ("Unable to find a place for '%s'\n", words[n_string]);
+      *words[n_string] = '\0';
     }
   }
 
+  if (n_tot_err >= max_tot_err_allowed)
+  {
+    fprintf (stderr, "Too many errors (%d) communicating with server; giving up\n", n_tot_err);
+    return -1;
+  }
+
+  puts (" ==] Answer key [==");
   for (i = 0; i < GRID_SIZE; i++)
   {
     for (j = 0; j < GRID_SIZE; j++)
@@ -539,14 +559,78 @@ int main(int argc, char **argv)
     puts ("");
   }
 
+  printf ("\n\n\n");
+
+  /* Fill in any unused spots with random letters */
+  for (i = 0; i < GRID_SIZE; i++)
+  {
+    for (j = 0; j < GRID_SIZE; j++)
+    {
+      if (puzzle[i][j] == fill_char)
+        puzzle[i][j] = (rand () % ((int)'Z' - (int)'A' + 1)) + (int)'A';
+    }
+  }
+
+  // print the puzzle
+  for (i = 0; i < GRID_SIZE; i++)
+  {
+    for (j = 0; j < GRID_SIZE; j++)
+    {
+      printf ("%c ", puzzle[i][j]);
+    }
+    puts ("");
+  }
+
+  // print the words to search for
+  puts ("");
   i = 0;
   while (i < max_words_target)
   {
-    if (words[i][0] != '\0')
-      printf ("%s\t", words[i]);
+    if (*words[i] != '\0')
+      printf ("%*s", max_len + 1, words[i]);
     i++;
+
+    // start a new row after every 3 words
+    if (i % 3 == 0)
+      puts ("");
   }
-  
+  puts ("");
+
+  // write the seed and the fetched words to a log file
+  if (argc > 1)
+  {
+    if (strcmp (argv[1], "-log") == 0)
+    {
+      char log_file[BUFSIZ];
+      snprintf (log_file, BUFSIZ, "wordsearch_%lu.log", seed);
+      FILE *fp = fopen (log_file, "w");
+      if (fp != NULL)
+      {
+        fprintf (fp, "seed = %lu\n\n", seed);
+        i = 0;
+        while (i < max_words_target)
+        {
+          if (*words[i] != '\0')
+            fprintf (fp, "%s\n", words[i]);
+          i++;
+        }
+      }
+      else
+      {
+        fputs ("Error while opening ", stderr);
+        perror (log_file);
+        return -1;
+      }
+
+      if (fclose (fp) != 0)
+        fprintf (stderr, "Error closing %s\n", log_file);
+    }
+    else
+    {
+      printf ("invalid option: %s\n", argv[1]);
+    }
+  }
+
   return 0;
 }
 
