@@ -2,6 +2,7 @@
  * wordsearch.c
  *
  * Copyright 2021 Andy Alt <andy400-dev@yahoo.com>
+ * https://github.com/theimpossibleastronaut/wordsearch
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,6 +34,7 @@
 #include <arpa/inet.h>
 #include <stdarg.h>
 
+#define VERSION "0.0.999"
 // n * n grid
 const int GRID_SIZE = 20; // n
 
@@ -42,6 +44,24 @@ const char PROTOCOL[] = "http";
 
 const char fill_char = '-';
 
+enum {
+  HORIZONTAL,
+  HORIZONTAL_BACKWARD,
+  VERTICAL,
+  VERTICAL_UP,
+  DIAGANOL_DOWN_RIGHT,
+  DIAGANOL_DOWN_LEFT,
+  DIAGANOL_UP_RIGHT,
+  DIAGANOL_UP_LEFT,
+};
+
+struct dir_op
+{
+  int begin_row;
+  int begin_col;
+  int row;
+  int col;
+};
 
 // Most of the network code and fail function was pinched and adapted from
 // https://www.lemoda.net/c/fetch-web-page/
@@ -99,14 +119,14 @@ static int get_word (char *str)
   const char * format = "\
 GET /%s HTTP/1.0\r\n\
 Host: %s\r\n\
-User-Agent: https://github.com/theimpossibleastronaut/wordsearch\r\n\
+User-Agent: https://github.com/theimpossibleastronaut/wordsearch_v%s\r\n\
 \r\n";
 
   /* "msg" is the request message that we will send to the
      server. */
 
   char msg[BUFSIZ];
-  int status = snprintf (msg, BUFSIZ, format, PAGE, HOST);
+  int status = snprintf (msg, BUFSIZ, format, PAGE, HOST, VERSION);
   if (status >= BUFSIZ)
   {
     fputs ("snprintf failed.", stderr);
@@ -184,224 +204,33 @@ void place (const int row, const int col, char puzzle[][GRID_SIZE], const char c
   return;
 }
 
-static int horizontal (const int len, const char *str, char puzzle[][GRID_SIZE])
+static int direction (struct dir_op *dir_op, const int len, const char *str, char puzzle[][GRID_SIZE])
 {
-  int col = rand() % (GRID_SIZE - len);
-  const int row = rand() % GRID_SIZE;
-  const int col_orig = col;
-  char *ptr = (char *)str;
-  while (*ptr != '\0')
-  {
-    if (check (row, col, puzzle, *ptr) == -1)
-      return -1;
-
-    ptr++;
-    col++;
-  }
-  col = col_orig;
-  ptr = (char *)str;
-  while (*ptr != '\0')
-  {
-    place (row, col, puzzle, *ptr);
-    ptr++;
-    col++;
-  }
-
-  return 0;
-}
-
-static int horizontal_backward (const int len, const char *str, char puzzle[][GRID_SIZE])
-{
-  int col = (rand() % (GRID_SIZE - len)) + len ;
-  const int row = rand () % GRID_SIZE;
-  const int col_orig = col;
+  int row = dir_op->begin_row;
+  int col = dir_op->begin_col;
   char *ptr = (char *)str;
   while (*ptr != '\0')
   {
     if (check (row, col, puzzle, *ptr) == -1)
       return -1;
     ptr++;
-    col--;
+    col += dir_op->col;
+    row += dir_op->row;
   }
 
-  col = col_orig;
+  row = dir_op->begin_row;
+  col = dir_op->begin_col;
   ptr = (char *)str;
   while (*ptr != '\0')
   {
     place (row, col, puzzle, *ptr);
     ptr++;
-    col--;
+    col += dir_op->col;
+    row += dir_op->row;
   }
   return 0;
 }
 
-static int vertical (const int len,  const char *str, char puzzle[][GRID_SIZE])
-{
-  int row = rand() % (GRID_SIZE - len);
-  const int col = rand () % GRID_SIZE;
-  const int row_orig = row;
-  char *ptr = (char *)str;
-  while (*ptr != '\0')
-  {
-    if (check (row, col, puzzle, *ptr) == -1)
-      return -1;
-    ptr++;
-    row++;
-  }
-
-  row = row_orig;
-  ptr = (char *)str;
-  while (*ptr != '\0')
-  {
-    place (row, col, puzzle, *ptr);
-    ptr++;
-    row++;
-  }
-  return 0;
-}
-
-static int vertical_up (const int len, const char *str, char puzzle[][GRID_SIZE])
-{
-  int row = (rand() % (GRID_SIZE - len)) + len;
-  const int col = rand () % GRID_SIZE;
-  const int row_orig = row;
-  char *ptr = (char *)str;
-  while (*ptr != '\0')
-  {
-    if (check (row, col, puzzle, *ptr) == -1)
-      return -1;
-    ptr++;
-    row--;
-  }
-
-  row = row_orig;
-  ptr = (char *)str;
-  while (*ptr != '\0')
-  {
-    place (row, col, puzzle, *ptr);
-    ptr++;
-    row--;
-  }
-  return 0;
-}
-
-
-static int diaganol_down_right (const int len, const char *str, char puzzle[][GRID_SIZE])
-{
-  int row = (rand() % (GRID_SIZE - len));
-  int col = (rand() % (GRID_SIZE - len));
-  const int row_orig = row;
-  const int col_orig = col;
-  char *ptr = (char *)str;
-  while (*ptr != '\0')
-  {
-    if (check (row, col, puzzle, *ptr) == -1)
-      return -1;
-    ptr++;
-    col++;
-    row++;
-  }
-
-  col = col_orig;
-  row = row_orig;
-  ptr = (char *)str;
-  while (*ptr != '\0')
-  {
-    place (row, col, puzzle, *ptr);
-    ptr++;
-    col++;
-    row++;
-  }
-  return 0;
-}
-
-static int diaganol_down_left (const int len, const char *str, char puzzle[][GRID_SIZE])
-{
-  int col = (rand() % (GRID_SIZE - len)) + len;
-  int row = (rand() % (GRID_SIZE - len));
-  const int row_orig = row;
-  const int col_orig = col;
-  char *ptr = (char *)str;
-  while (*ptr != '\0')
-  {
-    if (check (row, col, puzzle, *ptr) == -1)
-      return -1;
-    ptr++;
-    col--;
-    row++;
-  }
-
-  col = col_orig;
-  row = row_orig;
-  ptr = (char *)str;
-  while (*ptr != '\0')
-  {
-    place (row, col, puzzle, *ptr);
-    ptr++;
-    col--;
-    row++;
-  }
-  return 0;
-}
-
-static int diaganol_up_left (const int len, const char *str, char puzzle[][GRID_SIZE])
-{
-  //int col = (rand() % (GRID_SIZE - len)) + len;
-  int col = (rand() % (GRID_SIZE - len)) + len ;
-  int row = (rand() % (GRID_SIZE - len)) + len;
-  const int row_orig = row;
-  const int col_orig = col;
-  char *ptr = (char *)str;
-  while (*ptr != '\0')
-  {
-    if (check (row, col, puzzle, *ptr) == -1)
-      return -1;
-    ptr++;
-    col--;
-    row--;
-  }
-
-  col = col_orig;
-  row = row_orig;
-  ptr = (char *)str;
-  while (*ptr != '\0')
-  {
-    place (row, col, puzzle, *ptr);
-    ptr++;
-    col--;
-    row--;
-  }
-  return 0;
-}
-
-static int diaganol_up_right (const int len, const char *str, char puzzle[][GRID_SIZE])
-{
-  int col = rand() % (GRID_SIZE - len);
-  int row = (rand() % (GRID_SIZE - len)) + len;
-  const int row_orig = row;
-  const int col_orig = col;
-  char *ptr = (char *)str;
-  while (*ptr != '\0')
-  {
-    if (check (row, col, puzzle, *ptr) == -1)
-      return -1;
-    ptr++;
-    col++;
-    row--;
-  }
-
-  col = col_orig;
-  row = row_orig;
-  ptr = (char *)str;
-  while (*ptr != '\0')
-  {
-    place (row, col, puzzle, *ptr);
-    ptr++;
-    col++;
-    row--;
-  }
-  return 0;
-}
 
 /* TODO: To not punish the word server, use this for debugging */
 //const char *words[] = {
@@ -436,8 +265,9 @@ static int diaganol_up_right (const int len, const char *str, char puzzle[][GRID
 
 int main(int argc, char **argv)
 {
+  printf ("%s v%s\n\n", argv[0], VERSION);
+  struct dir_op dir_op;
   const int directions = 8;
-
   char puzzle[GRID_SIZE][GRID_SIZE];
   const int max_words_target = GRID_SIZE;
   char words[max_words_target][BUFSIZ];
@@ -459,18 +289,6 @@ int main(int argc, char **argv)
       puzzle[i][j] = fill_char;
     }
   }
-
-  // Create an array of function pointers
-  int (*direction_arr[])(const int, const char*, char(*)[GRID_SIZE]) = {
-    horizontal,
-    horizontal_backward,
-    vertical,
-    vertical_up,
-    diaganol_down_left,
-    diaganol_down_right,
-    diaganol_up_left,
-    diaganol_up_right
-  };
 
   /* seed the random number generator */
   const long unsigned int seed = time(NULL);
@@ -522,11 +340,61 @@ int main(int argc, char **argv)
       if (tries == 0 || tries > max_tries/2)
       {
         rnd = rand () % directions;
-        // rnd = 7;
+        //rnd = 1;
       }
 
-      r = direction_arr[rnd] (len, words[n_string], puzzle);
-
+      switch (rnd)
+      {
+        case HORIZONTAL:
+          dir_op.begin_row = rand() % GRID_SIZE;
+          dir_op.begin_col = rand() % (GRID_SIZE - len);
+          dir_op.row = 0;
+          dir_op.col = 1;
+          break;
+        case HORIZONTAL_BACKWARD:
+          dir_op.begin_row = rand () % GRID_SIZE;
+          dir_op.begin_col = (rand() % (GRID_SIZE - len)) + len ;
+          dir_op.row = 0;
+          dir_op.col = -1;
+          break;
+        case VERTICAL:
+          dir_op.begin_row = rand() % (GRID_SIZE - len);
+          dir_op.begin_col = rand () % GRID_SIZE;
+          dir_op.row = 1;
+          dir_op.col = 0;
+          break;
+        case VERTICAL_UP:
+          dir_op.begin_row = (rand() % (GRID_SIZE - len)) + len;
+          dir_op.begin_col = rand () % GRID_SIZE;
+          dir_op.row = -1;
+          dir_op.col = 0;
+          break;
+        case DIAGANOL_DOWN_RIGHT:
+          dir_op.row = (rand() % (GRID_SIZE - len));
+          dir_op.col = (rand() % (GRID_SIZE - len));
+          dir_op.row = 1;
+          dir_op.col = 1;
+          break;
+        case DIAGANOL_DOWN_LEFT:
+          dir_op.begin_row = (rand() % (GRID_SIZE - len));
+          dir_op.begin_col = (rand() % (GRID_SIZE - len)) + len;
+          dir_op.row = 1;
+          dir_op.col = -1;
+          break;
+        case DIAGANOL_UP_RIGHT:
+          dir_op.begin_row = (rand() % (GRID_SIZE - len)) + len;
+          dir_op.begin_col = rand() % (GRID_SIZE - len);
+          dir_op.row = -1;
+          dir_op.col = 1;
+          break;
+        case DIAGANOL_UP_LEFT:
+          dir_op.begin_row = (rand() % (GRID_SIZE - len)) + len;
+          dir_op.begin_col = (rand() % (GRID_SIZE - len)) + len ;
+          dir_op.row = -1;
+          dir_op.col = -1;
+          break;
+      }
+      r = direction (&dir_op, len, words[n_string], puzzle);
       if (r == 0)
         break;
     }
