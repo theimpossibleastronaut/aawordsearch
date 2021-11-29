@@ -1,13 +1,15 @@
 # wordsearch
 
 Generates a wordsearch puzzle (and its corresponding answer key) using
-words randomly fetched from https://random-word-api.herokuapp.com/word
+words randomly fetched from https://random-word-api.herokuapp.com/word,
+which uses
+[random-word-api](https://github.com/RazorSh4rk/random-word-api).
 
 ## Compile
 
     gcc -Wall wordsearch.c -o wordsearch
 
-## Output
+## Example Output
 
 ```
  ==] Answer key [==
