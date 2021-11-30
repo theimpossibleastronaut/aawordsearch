@@ -130,7 +130,7 @@ User-Agent: https://github.com/theimpossibleastronaut/wordsearch_v%s\r\n\
   if (status >= BUFSIZ)
   {
     fputs ("snprintf failed.", stderr);
-    exit (EXIT_FAILURE);
+    return -1;
   }
 
   /* Send the request. */
@@ -144,23 +144,34 @@ User-Agent: https://github.com/theimpossibleastronaut/wordsearch_v%s\r\n\
   fail (status == -1, "send failed: %s\n", strerror (errno));
 
   /* Our receiving buffer. */
+  char srv_str[BUFSIZ+10];
+  *srv_str = '\0';
   char buf[BUFSIZ+10];
-  /* Get "BUFSIZ" bytes from "s". */
-  int bytes = recv (s, buf, BUFSIZ, 0);
-  int r = close (s);
+  *buf = '\0';
+  int bytes;
+  do
+  {
+    /* Get "BUFSIZ" bytes from "s". */
+    bytes = recv (s, srv_str, BUFSIZ, 0);
+    fail (bytes == -1, "%s\n", strerror (errno));
 
-  if (bytes <= 0)
-    return -1;
+    /* Nul-terminate the string before printing. */
+    // srv[bytes] = '\0';
+    int max_len = BUFSIZ - strlen (buf);
+    // concatenate the string each iteration of the loop
+    status = snprintf (buf + strlen (buf), max_len, srv_str);
+    if (status >= max_len)
+    {
+      fputs ("snprintf failed.", stderr);
+      return -1;
+    }
+  } while (bytes > 0);
 
-  if (r != 0)
+  if (close(s) != 0)
   {
     fputs ("Error closing socket\n", stderr);
     return -1;
   }
-
-  fail (bytes == -1, "%s\n", strerror (errno));
-  /* Nul-terminate the string before printing. */
-  buf[bytes] = '\0';
 
   const char open_bracket[] = "[\"";
   const char closed_bracket[] = "\"]";
@@ -305,14 +316,13 @@ int main(int argc, char **argv)
   while ((n_string < max_words_target) && n_tot_err < max_tot_err_allowed)
   {
     int t = 0;
-    int r = -1;
-    while (t < 3 && r == -1)
+    int r;
+    do
     {
       r = get_word (words[n_string]);
-      t++;
       if (r != 0)
         n_tot_err++;
-    }
+    }  while (++t < 3 && r == -1);
 
     if (r != 0)
     {
