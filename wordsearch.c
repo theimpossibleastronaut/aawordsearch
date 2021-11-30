@@ -164,7 +164,7 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
     // srv[bytes] = '\0';
     int max_len = BUFSIZ - strlen (buf);
     // concatenate the string each iteration of the loop
-    status = snprintf (buf + strlen (buf), max_len, srv_str);
+    status = snprintf (buf + strlen (buf), max_len, "%s", srv_str);
     if (status >= max_len)
     {
       fputs ("snprintf failed.", stderr);
