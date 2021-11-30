@@ -34,7 +34,7 @@
 #include <arpa/inet.h>
 #include <stdarg.h>
 
-#define VERSION "0.1.0"
+#define VERSION "0.1.0999"
 #define PROGRAM_NAME "aawordsearch"
 // n * n grid
 const int GRID_SIZE = 20;       // n
