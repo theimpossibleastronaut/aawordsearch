@@ -243,6 +243,59 @@ static int direction (struct dir_op *dir_op, const int len, const char *str, cha
 }
 
 
+void print_answer_key (FILE *restrict stream, const char puzzle[][GRID_SIZE])
+{ int i, j;
+  fputs (" ==] Answer key [==\n", stream);
+  for (i = 0; i < GRID_SIZE; i++)
+  {
+    for (j = 0; j < GRID_SIZE; j++)
+    {
+      fprintf (stream, "%c ", puzzle[i][j]);
+    }
+    fputs ("\n", stream);
+  }
+  fputs ("\n\n\n", stream);
+  return;
+}
+
+
+void print_puzzle (FILE *restrict stream, const char puzzle[][GRID_SIZE])
+{
+  int i, j;
+  for (i = 0; i < GRID_SIZE; i++)
+  {
+    for (j = 0; j < GRID_SIZE; j++)
+    {
+      if (puzzle[i][j] == fill_char)
+        fprintf (stream, "%c ", (rand () % ((int)'Z' - (int)'A' + 1)) + (int)'A');
+      else
+        fprintf (stream, "%c ", puzzle[i][j]);
+    }
+    fputs ("\n", stream);
+  }
+  fputs ("\n", stream);
+  return;
+}
+
+
+static void print_words (FILE *restrict stream, const char words[][BUFSIZ], const char puzzle[][GRID_SIZE], const int n_string, const int max_len)
+{
+  int i = 0;
+  while (i < n_string)
+  {
+    if (*words[i] != '\0')
+      fprintf (stream, "%*s", max_len + 1, words[i]);
+    i++;
+
+    // start a new row after every 3 words
+    if (i % 3 == 0)
+      fputs ("\n", stream);
+  }
+  fputs ("\n", stream);
+  return;
+}
+
+
 /* TODO: To not punish the word server, use this for debugging */
 //const char *words[] = {
   //"received",
@@ -312,7 +365,7 @@ int main(int argc, char **argv)
   // we'll quit completely
   const int max_tot_err_allowed = 10;
   int n_tot_err = 0;
-  printf ("Attempting to fetch %d from %s...\n", max_words_target, HOST);
+  printf ("Attempting to fetch %d words from %s...\n", max_words_target, HOST);
   while ((n_string < max_words_target) && n_tot_err < max_tot_err_allowed)
   {
     int t = 0;
@@ -427,54 +480,11 @@ int main(int argc, char **argv)
     return -1;
   }
 
-  puts (" ==] Answer key [==");
-  for (i = 0; i < GRID_SIZE; i++)
-  {
-    for (j = 0; j < GRID_SIZE; j++)
-    {
-      printf ("%c ", puzzle[i][j]);
-    }
-    puts ("");
-  }
+  print_answer_key (stdout, puzzle);
+  print_puzzle (stdout, puzzle);
+  print_words (stdout, words, puzzle, n_string, max_len);
 
-  printf ("\n\n\n");
-
-  /* Fill in any unused spots with random letters */
-  for (i = 0; i < GRID_SIZE; i++)
-  {
-    for (j = 0; j < GRID_SIZE; j++)
-    {
-      if (puzzle[i][j] == fill_char)
-        puzzle[i][j] = (rand () % ((int)'Z' - (int)'A' + 1)) + (int)'A';
-    }
-  }
-
-  // print the puzzle
-  for (i = 0; i < GRID_SIZE; i++)
-  {
-    for (j = 0; j < GRID_SIZE; j++)
-    {
-      printf ("%c ", puzzle[i][j]);
-    }
-    puts ("");
-  }
-
-  // print the words to search for
-  puts ("");
-  i = 0;
-  while (i < max_words_target)
-  {
-    if (*words[i] != '\0')
-      printf ("%*s", max_len + 1, words[i]);
-    i++;
-
-    // start a new row after every 3 words
-    if (i % 3 == 0)
-      puts ("");
-  }
-  puts ("");
-
-  // write the seed and the fetched words to a log file
+  // write the seed, answer key, and puzzle to a file
   if (argc > 1)
   {
     if (strcmp (argv[1], "-log") == 0)
@@ -485,13 +495,9 @@ int main(int argc, char **argv)
       if (fp != NULL)
       {
         fprintf (fp, "seed = %lu\n\n", seed);
-        i = 0;
-        while (i < max_words_target)
-        {
-          if (*words[i] != '\0')
-            fprintf (fp, "%s\n", words[i]);
-          i++;
-        }
+        print_answer_key (fp, puzzle);
+        print_puzzle (fp, puzzle);
+        print_words (fp, words, puzzle, max_words_target, max_len);
       }
       else
       {
@@ -500,6 +506,21 @@ int main(int argc, char **argv)
         return -1;
       }
 
+      if (fclose (fp) != 0)
+        fprintf (stderr, "Error closing %s\n", log_file);
+
+      char word_log_file[BUFSIZ];
+      snprintf (word_log_file, BUFSIZ, "wordsearch_words_%lu.log", seed);
+      fp = fopen (word_log_file, "w");
+      if (fp != NULL)
+      {
+        int l = 0;
+        while (l < n_string)
+        {
+          fprintf (fp, "%s\n", words[l]);
+          l++;
+        }
+      }
       if (fclose (fp) != 0)
         fprintf (stderr, "Error closing %s\n", log_file);
     }
