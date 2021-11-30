@@ -36,7 +36,7 @@
 
 #define VERSION "0.0.999"
 // n * n grid
-const int GRID_SIZE = 20; // n
+const int GRID_SIZE = 20;       // n
 
 const char HOST[] = "random-word-api.herokuapp.com";
 const char PAGE[] = "word";
@@ -44,7 +44,8 @@ const char PROTOCOL[] = "http";
 
 const char fill_char = '-';
 
-enum {
+enum
+{
   HORIZONTAL,
   HORIZONTAL_BACKWARD,
   VERTICAL,
@@ -71,7 +72,8 @@ struct dir_op
    function calls to things like "strerror". However, not every
    version of C has variadic macros. */
 
-static void fail (int test, const char * format, ...)
+static void
+fail (int test, const char *format, ...)
 {
   if (test)
   {
@@ -84,7 +86,9 @@ static void fail (int test, const char * format, ...)
   }
 }
 
-static int get_word (char *str)
+
+static int
+get_word (char *str)
 {
   struct addrinfo hints, *res, *res0;
   int error;
@@ -95,7 +99,7 @@ static int get_word (char *str)
   /* Don't specify what type of internet connection. */
   hints.ai_family = PF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
-  error = getaddrinfo (HOST, PROTOCOL, & hints, & res0);
+  error = getaddrinfo (HOST, PROTOCOL, &hints, &res0);
   fail (error, gai_strerror (error));
   s = -1;
   for (res = res0; res; res = res->ai_next)
@@ -111,12 +115,12 @@ static int get_word (char *str)
     break;
   }
 
-  freeaddrinfo(res0);
+  freeaddrinfo (res0);
 
   /* "format" is the format of the HTTP request we send to the web
      server. */
 
-  const char * format = "\
+  const char *format = "\
 GET /%s HTTP/1.0\r\n\
 Host: %s\r\n\
 User-Agent: https://github.com/theimpossibleastronaut/wordsearch_v%s\r\n\
@@ -144,9 +148,9 @@ User-Agent: https://github.com/theimpossibleastronaut/wordsearch_v%s\r\n\
   fail (status == -1, "send failed: %s\n", strerror (errno));
 
   /* Our receiving buffer. */
-  char srv_str[BUFSIZ+10];
+  char srv_str[BUFSIZ + 10];
   *srv_str = '\0';
-  char buf[BUFSIZ+10];
+  char buf[BUFSIZ + 10];
   *buf = '\0';
   int bytes;
   do
@@ -165,9 +169,10 @@ User-Agent: https://github.com/theimpossibleastronaut/wordsearch_v%s\r\n\
       fputs ("snprintf failed.", stderr);
       return -1;
     }
-  } while (bytes > 0);
+  }
+  while (bytes > 0);
 
-  if (close(s) != 0)
+  if (close (s) != 0)
   {
     fputs ("Error closing socket\n", stderr);
     return -1;
@@ -200,7 +205,9 @@ User-Agent: https://github.com/theimpossibleastronaut/wordsearch_v%s\r\n\
 }
 
 
-int check (const int row, const int col, const char puzzle[][GRID_SIZE], const char c)
+int
+check (const int row, const int col, const char puzzle[][GRID_SIZE],
+       const char c)
 {
   const int u = toupper (c);
   if (u == puzzle[row][col] || puzzle[row][col] == fill_char)
@@ -209,17 +216,22 @@ int check (const int row, const int col, const char puzzle[][GRID_SIZE], const c
   return -1;
 }
 
-void place (const int row, const int col, char puzzle[][GRID_SIZE], const char c)
+
+void
+place (const int row, const int col, char puzzle[][GRID_SIZE], const char c)
 {
-  puzzle[row][col] = toupper(c);
+  puzzle[row][col] = toupper (c);
   return;
 }
 
-static int direction (struct dir_op *dir_op, const int len, const char *str, char puzzle[][GRID_SIZE])
+
+static int
+direction (struct dir_op *dir_op, const int len, const char *str,
+           char puzzle[][GRID_SIZE])
 {
   int row = dir_op->begin_row;
   int col = dir_op->begin_col;
-  char *ptr = (char *)str;
+  char *ptr = (char *) str;
   while (*ptr != '\0')
   {
     if (check (row, col, puzzle, *ptr) == -1)
@@ -231,7 +243,7 @@ static int direction (struct dir_op *dir_op, const int len, const char *str, cha
 
   row = dir_op->begin_row;
   col = dir_op->begin_col;
-  ptr = (char *)str;
+  ptr = (char *) str;
   while (*ptr != '\0')
   {
     place (row, col, puzzle, *ptr);
@@ -243,8 +255,10 @@ static int direction (struct dir_op *dir_op, const int len, const char *str, cha
 }
 
 
-void print_answer_key (FILE *restrict stream, const char puzzle[][GRID_SIZE])
-{ int i, j;
+void
+print_answer_key (FILE * restrict stream, const char puzzle[][GRID_SIZE])
+{
+  int i, j;
   fputs (" ==] Answer key [==\n", stream);
   for (i = 0; i < GRID_SIZE; i++)
   {
@@ -259,7 +273,8 @@ void print_answer_key (FILE *restrict stream, const char puzzle[][GRID_SIZE])
 }
 
 
-void print_puzzle (FILE *restrict stream, const char puzzle[][GRID_SIZE])
+void
+print_puzzle (FILE * restrict stream, const char puzzle[][GRID_SIZE])
 {
   int i, j;
   for (i = 0; i < GRID_SIZE; i++)
@@ -267,7 +282,8 @@ void print_puzzle (FILE *restrict stream, const char puzzle[][GRID_SIZE])
     for (j = 0; j < GRID_SIZE; j++)
     {
       if (puzzle[i][j] == fill_char)
-        fprintf (stream, "%c ", (rand () % ((int)'Z' - (int)'A' + 1)) + (int)'A');
+        fprintf (stream, "%c ",
+                 (rand () % ((int) 'Z' - (int) 'A' + 1)) + (int) 'A');
       else
         fprintf (stream, "%c ", puzzle[i][j]);
     }
@@ -278,7 +294,10 @@ void print_puzzle (FILE *restrict stream, const char puzzle[][GRID_SIZE])
 }
 
 
-static void print_words (FILE *restrict stream, const char words[][BUFSIZ], const char puzzle[][GRID_SIZE], const int n_string, const int max_len)
+static void
+print_words (FILE * restrict stream, const char words[][BUFSIZ],
+             const char puzzle[][GRID_SIZE], const int n_string,
+             const int max_len)
 {
   int i = 0;
   while (i < n_string)
@@ -327,7 +346,8 @@ static void print_words (FILE *restrict stream, const char words[][BUFSIZ], cons
 
 // const size_t n_strings = sizeof(strings)/sizeof(strings[0]);
 
-int main(int argc, char **argv)
+int
+main (int argc, char **argv)
 {
   printf ("%s v%s\n\n", argv[0], VERSION);
   struct dir_op dir_op;
@@ -355,7 +375,7 @@ int main(int argc, char **argv)
   }
 
   /* seed the random number generator */
-  const long unsigned int seed = time(NULL);
+  const long unsigned int seed = time (NULL);
   srand (seed);
 
   const int max_len = GRID_SIZE - 2;
@@ -365,7 +385,8 @@ int main(int argc, char **argv)
   // we'll quit completely
   const int max_tot_err_allowed = 10;
   int n_tot_err = 0;
-  printf ("Attempting to fetch %d words from %s...\n", max_words_target, HOST);
+  printf ("Attempting to fetch %d words from %s...\n", max_words_target,
+          HOST);
   while ((n_string < max_words_target) && n_tot_err < max_tot_err_allowed)
   {
     int t = 0;
@@ -375,7 +396,8 @@ int main(int argc, char **argv)
       r = get_word (words[n_string]);
       if (r != 0)
         n_tot_err++;
-    }  while (++t < 3 && r == -1);
+    }
+    while (++t < 3 && r == -1);
 
     if (r != 0)
     {
@@ -385,7 +407,7 @@ int main(int argc, char **argv)
     }
 
     const int len = strlen (words[n_string]);
-    if (len > max_len) // skip the word if it exceeds this value
+    if (len > max_len)          // skip the word if it exceeds this value
     {
       printf ("word '%s' exceeded max length\n", words[n_string]);
       *words[n_string] = '\0';
@@ -400,7 +422,7 @@ int main(int argc, char **argv)
     {
       int rnd;
       // After n number of tries, try different directions.
-      if (tries == 0 || tries > max_tries/2)
+      if (tries == 0 || tries > max_tries / 2)
       {
         rnd = rand () % directions;
         //rnd = 1;
@@ -408,54 +430,54 @@ int main(int argc, char **argv)
 
       switch (rnd)
       {
-        case HORIZONTAL:
-          dir_op.begin_row = rand() % GRID_SIZE;
-          dir_op.begin_col = rand() % (GRID_SIZE - len);
-          dir_op.row = 0;
-          dir_op.col = 1;
-          break;
-        case HORIZONTAL_BACKWARD:
-          dir_op.begin_row = rand () % GRID_SIZE;
-          dir_op.begin_col = (rand() % (GRID_SIZE - len)) + len ;
-          dir_op.row = 0;
-          dir_op.col = -1;
-          break;
-        case VERTICAL:
-          dir_op.begin_row = rand() % (GRID_SIZE - len);
-          dir_op.begin_col = rand () % GRID_SIZE;
-          dir_op.row = 1;
-          dir_op.col = 0;
-          break;
-        case VERTICAL_UP:
-          dir_op.begin_row = (rand() % (GRID_SIZE - len)) + len;
-          dir_op.begin_col = rand () % GRID_SIZE;
-          dir_op.row = -1;
-          dir_op.col = 0;
-          break;
-        case DIAGANOL_DOWN_RIGHT:
-          dir_op.row = (rand() % (GRID_SIZE - len));
-          dir_op.col = (rand() % (GRID_SIZE - len));
-          dir_op.row = 1;
-          dir_op.col = 1;
-          break;
-        case DIAGANOL_DOWN_LEFT:
-          dir_op.begin_row = (rand() % (GRID_SIZE - len));
-          dir_op.begin_col = (rand() % (GRID_SIZE - len)) + len;
-          dir_op.row = 1;
-          dir_op.col = -1;
-          break;
-        case DIAGANOL_UP_RIGHT:
-          dir_op.begin_row = (rand() % (GRID_SIZE - len)) + len;
-          dir_op.begin_col = rand() % (GRID_SIZE - len);
-          dir_op.row = -1;
-          dir_op.col = 1;
-          break;
-        case DIAGANOL_UP_LEFT:
-          dir_op.begin_row = (rand() % (GRID_SIZE - len)) + len;
-          dir_op.begin_col = (rand() % (GRID_SIZE - len)) + len ;
-          dir_op.row = -1;
-          dir_op.col = -1;
-          break;
+      case HORIZONTAL:
+        dir_op.begin_row = rand () % GRID_SIZE;
+        dir_op.begin_col = rand () % (GRID_SIZE - len);
+        dir_op.row = 0;
+        dir_op.col = 1;
+        break;
+      case HORIZONTAL_BACKWARD:
+        dir_op.begin_row = rand () % GRID_SIZE;
+        dir_op.begin_col = (rand () % (GRID_SIZE - len)) + len;
+        dir_op.row = 0;
+        dir_op.col = -1;
+        break;
+      case VERTICAL:
+        dir_op.begin_row = rand () % (GRID_SIZE - len);
+        dir_op.begin_col = rand () % GRID_SIZE;
+        dir_op.row = 1;
+        dir_op.col = 0;
+        break;
+      case VERTICAL_UP:
+        dir_op.begin_row = (rand () % (GRID_SIZE - len)) + len;
+        dir_op.begin_col = rand () % GRID_SIZE;
+        dir_op.row = -1;
+        dir_op.col = 0;
+        break;
+      case DIAGANOL_DOWN_RIGHT:
+        dir_op.row = (rand () % (GRID_SIZE - len));
+        dir_op.col = (rand () % (GRID_SIZE - len));
+        dir_op.row = 1;
+        dir_op.col = 1;
+        break;
+      case DIAGANOL_DOWN_LEFT:
+        dir_op.begin_row = (rand () % (GRID_SIZE - len));
+        dir_op.begin_col = (rand () % (GRID_SIZE - len)) + len;
+        dir_op.row = 1;
+        dir_op.col = -1;
+        break;
+      case DIAGANOL_UP_RIGHT:
+        dir_op.begin_row = (rand () % (GRID_SIZE - len)) + len;
+        dir_op.begin_col = rand () % (GRID_SIZE - len);
+        dir_op.row = -1;
+        dir_op.col = 1;
+        break;
+      case DIAGANOL_UP_LEFT:
+        dir_op.begin_row = (rand () % (GRID_SIZE - len)) + len;
+        dir_op.begin_col = (rand () % (GRID_SIZE - len)) + len;
+        dir_op.row = -1;
+        dir_op.col = -1;
+        break;
       }
       r = direction (&dir_op, len, words[n_string], puzzle);
       if (r == 0)
@@ -476,7 +498,9 @@ int main(int argc, char **argv)
 
   if (n_tot_err >= max_tot_err_allowed)
   {
-    fprintf (stderr, "Too many errors (%d) communicating with server; giving up\n", n_tot_err);
+    fprintf (stderr,
+             "Too many errors (%d) communicating with server; giving up\n",
+             n_tot_err);
     return -1;
   }
 
@@ -532,4 +556,3 @@ int main(int argc, char **argv)
 
   return 0;
 }
-
