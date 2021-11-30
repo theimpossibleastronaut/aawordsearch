@@ -34,7 +34,8 @@
 #include <arpa/inet.h>
 #include <stdarg.h>
 
-#define VERSION "0.0.999"
+#define VERSION "0.1.0"
+#define PROGRAM_NAME "aawordsearch"
 // n * n grid
 const int GRID_SIZE = 20;       // n
 
@@ -123,7 +124,7 @@ get_word (char *str)
   const char *format = "\
 GET /%s HTTP/1.0\r\n\
 Host: %s\r\n\
-User-Agent: github.com/theimpossibleastronaut/wordsearch (v%s)\r\n\
+User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
 \r\n";
 
   /* "msg" is the request message that we will send to the
@@ -349,7 +350,7 @@ print_words (FILE * restrict stream, const char words[][BUFSIZ],
 int
 main (int argc, char **argv)
 {
-  printf ("%s v%s\n\n", argv[0], VERSION);
+  printf ("%s v%s\n\n", PROGRAM_NAME, VERSION);
   struct dir_op dir_op;
   const int directions = 8;
   char puzzle[GRID_SIZE][GRID_SIZE];

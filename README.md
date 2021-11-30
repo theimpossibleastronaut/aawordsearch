@@ -1,4 +1,4 @@
-# wordsearch
+# aawordsearch
 
 Generates a wordsearch puzzle (and its corresponding answer key) using
 words randomly fetched from https://random-word-api.herokuapp.com/word,
