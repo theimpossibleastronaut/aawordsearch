@@ -89,7 +89,7 @@ fail (int test, const char *format, ...)
 
 
 static int
-get_word (char *str)
+get_words (char str[][BUFSIZ], const int fetch_count)
 {
   struct addrinfo hints, *res, *res0;
   int error;
@@ -122,7 +122,7 @@ get_word (char *str)
      server. */
 
   const char *format = "\
-GET /%s HTTP/1.0\r\n\
+GET /%s?number=%d HTTP/1.0\r\n\
 Host: %s\r\n\
 User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
 \r\n";
@@ -131,7 +131,7 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
      server. */
 
   char msg[BUFSIZ];
-  int status = snprintf (msg, BUFSIZ, format, PAGE, HOST, VERSION);
+  int status = snprintf (msg, BUFSIZ, format, PAGE, fetch_count, HOST, VERSION);
   if (status >= BUFSIZ)
   {
     fputs ("snprintf failed.", stderr);
@@ -185,7 +185,7 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
   char *buf_start = strstr (buf, open_bracket);
 
   if (buf_start != NULL)
-    buf_start += strlen (open_bracket);
+    buf_start++;
   else
   {
     fprintf (stderr, str_not_found, open_bracket);
@@ -194,14 +194,25 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
 
   char *buf_end = strstr (buf_start, closed_bracket);
   if (buf_end != NULL)
-    *buf_end = '\0';
+    *buf_end = '\0'; // replaces the ']' so the string should end with '"'
   else
   {
     fprintf (stderr, str_not_found, closed_bracket);
     return -1;
   }
 
-  strcpy (str, buf_start);
+  const char delimiter[] = "\",\"";
+  char *token = strtok (buf_start, delimiter);
+  int n_word = 0;
+
+  while (token != NULL)
+  {
+    // printf("[%s]\n", token);
+    strcpy (str[n_word], token);
+    token = strtok(NULL, delimiter);
+    n_word++;
+  }
+
   return 0;
 }
 
@@ -355,18 +366,13 @@ main (int argc, char **argv)
   const int directions = 8;
   char puzzle[GRID_SIZE][GRID_SIZE];
   const int max_words_target = GRID_SIZE;
-  char words[max_words_target][BUFSIZ];
+  const int fetch_count = max_words_target * 1.4;
+  char fetched_words[fetch_count][BUFSIZ];
   // const size_t n_max_words = sizeof(words)/sizeof(words[0]);
 
+  /* initialize the puzzle with fill_char */
   int i = 0;
   int j = 0;
-
-  for (i = 0; i < max_words_target; i++)
-  {
-    *words[i] = '\0';
-  }
-
-  /* initialize the puzzle with fill_char */
   for (i = 0; i < GRID_SIZE; i++)
   {
     for (j = 0; j < GRID_SIZE; j++)
@@ -380,7 +386,6 @@ main (int argc, char **argv)
   srand (seed);
 
   const int max_len = GRID_SIZE - 2;
-  int n_string = 0;
   int tries = 0;
   // this probably means the word server is having issues. If this number is exceeded,
   // we'll quit completely
@@ -388,30 +393,39 @@ main (int argc, char **argv)
   int n_tot_err = 0;
   printf ("Attempting to fetch %d words from %s...\n", max_words_target,
           HOST);
+  int t = 0;
+  int r;
+  do
+  {
+    r = get_words (fetched_words, fetch_count);
+    if (r != 0)
+      n_tot_err++;
+  }
+  while (++t < 3 && r == -1);
+
+  if (r != 0)
+  {
+    fputs ("Failed to get words from server\n", stderr);
+    return -1;
+  }
+
+  char words[max_words_target][BUFSIZ];
+  for (i = 0; i < max_words_target; i++)
+  {
+    *words[i] = '\0';
+  }
+
+  int n_string = 0;
+  int f_string = 0;
   while ((n_string < max_words_target) && n_tot_err < max_tot_err_allowed)
   {
-    int t = 0;
-    int r;
-    do
-    {
-      r = get_word (words[n_string]);
-      if (r != 0)
-        n_tot_err++;
-    }
-    while (++t < 3 && r == -1);
-
-    if (r != 0)
-    {
-      fputs ("Failed to get word from server\n", stderr);
-      *words[n_string] = '\0';
-      continue;
-    }
-
+    strcpy (words[n_string], fetched_words[f_string]);
     const int len = strlen (words[n_string]);
     if (len > max_len)          // skip the word if it exceeds this value
     {
       printf ("word '%s' exceeded max length\n", words[n_string]);
       *words[n_string] = '\0';
+      f_string++;
       continue;
     }
 
@@ -490,6 +504,7 @@ main (int argc, char **argv)
     if (r == 0)
     {
       n_string++;
+      f_string++;
       cur_dir++;
       if (cur_dir > directions - 1)
         cur_dir = 0;
@@ -498,16 +513,16 @@ main (int argc, char **argv)
     {
       n_tot_err++;
       printf ("Unable to find a place for '%s'\n", words[n_string]);
-      *words[n_string] = '\0';
+      f_string++;
     }
-  }
 
-  if (n_tot_err >= max_tot_err_allowed)
-  {
-    fprintf (stderr,
-             "Too many errors (%d) communicating with server; giving up\n",
-             n_tot_err);
-    return -1;
+    if (n_tot_err >= max_tot_err_allowed)
+    {
+      fprintf (stderr,
+               "Too many errors (%d) communicating with server; giving up\n",
+               n_tot_err);
+      return -1;
+    }
   }
 
   print_answer_key (stdout, puzzle);
