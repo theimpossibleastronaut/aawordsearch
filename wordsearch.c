@@ -417,18 +417,20 @@ main (int argc, char **argv)
     printf ("%d.) %s\n", n_string + 1, words[n_string]);
 
     const int max_tries = GRID_SIZE * 4;
+    int cur_dir = 0;
     // The word will be skipped if a place can't be found
     for (tries = 0; tries < max_tries; tries++)
     {
-      int rnd;
+      // int rnd;
       // After n number of tries, try different directions.
       if (tries == 0 || tries > max_tries / 2)
       {
-        rnd = rand () % directions;
+        cur_dir = rand () % directions;
         //rnd = 1;
+
       }
 
-      switch (rnd)
+      switch (cur_dir)
       {
       case HORIZONTAL:
         dir_op.begin_row = rand () % GRID_SIZE;
@@ -487,6 +489,9 @@ main (int argc, char **argv)
     if (r == 0)
     {
       n_string++;
+      cur_dir++;
+      if (cur_dir > directions - 1)
+        cur_dir = 0;
     }
     else
     {
