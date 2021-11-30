@@ -123,7 +123,7 @@ get_word (char *str)
   const char *format = "\
 GET /%s HTTP/1.0\r\n\
 Host: %s\r\n\
-User-Agent: https://github.com/theimpossibleastronaut/wordsearch_v%s\r\n\
+User-Agent: github.com/theimpossibleastronaut/wordsearch (v%s)\r\n\
 \r\n";
 
   /* "msg" is the request message that we will send to the
