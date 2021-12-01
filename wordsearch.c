@@ -33,6 +33,8 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <stdarg.h>
+#include <getopt.h>
+#include <stdbool.h>
 
 #define VERSION "0.1.0999"
 #define PROGRAM_NAME "aawordsearch"
@@ -357,11 +359,18 @@ print_words (FILE * restrict stream, const char words[][BUFSIZ],
 //};
 
 // const size_t n_strings = sizeof(strings)/sizeof(strings[0]);
+void
+print_usage()
+{
+  printf ("\n\
+  -h, --help                show help for command line options\n\
+  -V, --version             show the program version number\n\
+  -l, --list                list waste directories\n");
+}
 
 int
 main (int argc, char **argv)
 {
-  printf ("%s v%s\n\n", PROGRAM_NAME, VERSION);
   struct dir_op dir_op;
   const int directions = 8;
   char puzzle[GRID_SIZE][GRID_SIZE];
@@ -369,6 +378,48 @@ main (int argc, char **argv)
   const int fetch_count = max_words_target * 1.4;
   char fetched_words[fetch_count][BUFSIZ];
   // const size_t n_max_words = sizeof(words)/sizeof(words[0]);
+  
+  bool log = false;
+  
+  const struct option long_options[] = {
+    {"help", no_argument, NULL, 'h'},
+    {"log", no_argument, NULL, 'l'},
+    {"version", no_argument, NULL, 'V'},
+    {0, 0, 0, 0}
+  };
+
+  int option_index = 0;
+  int c;
+  while ((c = getopt_long (argc, argv, "hlV", long_options, &option_index)) != -1)
+  {
+    switch ((char)c)
+    {
+    case 'h':
+      print_usage ();
+      return 0;
+    case 'l':
+      log = true;
+      puts ("The log will be activated! Hooray!");
+      break;
+    case 'V':
+      printf ("%s v%s\n\n", PROGRAM_NAME, VERSION);
+      return 0;
+    case '?':
+      printf ("Try '%s --help' for more information.\n", argv[0]);
+      return -1;
+    default:
+      printf("?? getopt returned character code 0%o ??\n", c);
+    }
+  }
+
+  /* Print any remaining command line arguments (not options). */
+  if (optind < argc)
+  {
+    printf ("non-option ARGV-elements: ");
+    while (optind < argc)
+      printf ("%s ", argv[optind++]);
+    putchar ('\n');
+  }
 
   /* initialize the puzzle with fill_char */
   int i = 0;
@@ -438,11 +489,10 @@ main (int argc, char **argv)
     {
       // int rnd;
       // After n number of tries, try different directions.
-      if (tries == 0 || tries > max_tries / 2)
+      if (max_tries / 2)
       {
         cur_dir = rand () % directions;
         //rnd = 1;
-
       }
 
       switch (cur_dir)
@@ -496,6 +546,7 @@ main (int argc, char **argv)
         dir_op.col = -1;
         break;
       }
+      
       r = direction (&dir_op, len, words[n_string], puzzle);
       if (r == 0)
         break;
@@ -530,49 +581,42 @@ main (int argc, char **argv)
   print_words (stdout, words, puzzle, n_string, max_len);
 
   // write the seed, answer key, and puzzle to a file
-  if (argc > 1)
+  if (log)
   {
-    if (strcmp (argv[1], "-log") == 0)
+    char log_file[BUFSIZ];
+    snprintf (log_file, BUFSIZ, "wordsearch_%lu.log", seed);
+    FILE *fp = fopen (log_file, "w");
+    if (fp != NULL)
     {
-      char log_file[BUFSIZ];
-      snprintf (log_file, BUFSIZ, "wordsearch_%lu.log", seed);
-      FILE *fp = fopen (log_file, "w");
-      if (fp != NULL)
-      {
-        fprintf (fp, "seed = %lu\n\n", seed);
-        print_answer_key (fp, puzzle);
-        print_puzzle (fp, puzzle);
-        print_words (fp, words, puzzle, max_words_target, max_len);
-      }
-      else
-      {
-        fputs ("Error while opening ", stderr);
-        perror (log_file);
-        return -1;
-      }
-
-      if (fclose (fp) != 0)
-        fprintf (stderr, "Error closing %s\n", log_file);
-
-      char word_log_file[BUFSIZ];
-      snprintf (word_log_file, BUFSIZ, "wordsearch_words_%lu.log", seed);
-      fp = fopen (word_log_file, "w");
-      if (fp != NULL)
-      {
-        int l = 0;
-        while (l < n_string)
-        {
-          fprintf (fp, "%s\n", words[l]);
-          l++;
-        }
-      }
-      if (fclose (fp) != 0)
-        fprintf (stderr, "Error closing %s\n", log_file);
+      fprintf (fp, "seed = %lu\n\n", seed);
+      print_answer_key (fp, puzzle);
+      print_puzzle (fp, puzzle);
+      print_words (fp, words, puzzle, max_words_target, max_len);
     }
     else
     {
-      printf ("invalid option: %s\n", argv[1]);
+      fputs ("Error while opening ", stderr);
+      perror (log_file);
+      return -1;
     }
+
+    if (fclose (fp) != 0)
+      fprintf (stderr, "Error closing %s\n", log_file);
+
+    char word_log_file[BUFSIZ];
+    snprintf (word_log_file, BUFSIZ, "wordsearch_words_%lu.log", seed);
+    fp = fopen (word_log_file, "w");
+    if (fp != NULL)
+    {
+      int l = 0;
+      while (l < n_string)
+      {
+        fprintf (fp, "%s\n", words[l]);
+        l++;
+      }
+    }
+    if (fclose (fp) != 0)
+      fprintf (stderr, "Error closing %s\n", log_file);
   }
 
   return 0;
