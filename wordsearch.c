@@ -36,7 +36,7 @@
 #include <getopt.h>
 #include <stdbool.h>
 
-#define VERSION "0.1.1"
+#define VERSION "0.1.1999"
 #define PROGRAM_NAME "aawordsearch"
 // n * n grid
 const int GRID_SIZE = 20;       // n
@@ -63,8 +63,9 @@ struct dir_op
 {
   int begin_row;
   int begin_col;
-  int row;
-  int col;
+  const int row;
+  const int col;
+  void (*direction)(struct dir_op *dir_op, const int len);
 };
 
 // Most of the network code and fail function was pinched and adapted from
@@ -231,14 +232,6 @@ check (const int row, const int col, const char puzzle[][GRID_SIZE],
 }
 
 
-void
-place (const int row, const int col, char puzzle[][GRID_SIZE], const char c)
-{
-  puzzle[row][col] = toupper (c);
-  return;
-}
-
-
 static int
 direction (struct dir_op *dir_op, const int len, const char *str,
            char puzzle[][GRID_SIZE])
@@ -260,7 +253,7 @@ direction (struct dir_op *dir_op, const int len, const char *str,
   ptr = (char *) str;
   while (*ptr != '\0')
   {
-    place (row, col, puzzle, *ptr);
+    puzzle[row][col] = toupper (*ptr);
     ptr++;
     col += dir_op->col;
     row += dir_op->row;
@@ -328,6 +321,82 @@ print_words (FILE * restrict stream, const char words[][BUFSIZ],
   return;
 }
 
+//struct dir_test
+//{
+
+//};
+
+static void
+horizontal (struct dir_op *dir_op, const int len)
+{
+  dir_op->begin_row = rand () % GRID_SIZE;
+  dir_op->begin_col = rand () % (GRID_SIZE - len);
+  return;
+}
+
+
+static void
+horizontal_left (struct dir_op *dir_op, const int len)
+{
+  dir_op->begin_row = rand () % GRID_SIZE;
+  dir_op->begin_col = (rand () % (GRID_SIZE - len)) + len;
+  return;
+}
+
+
+static void
+vertical (struct dir_op *dir_op, const int len)
+{
+  dir_op->begin_row = rand () % (GRID_SIZE - len);
+  dir_op->begin_col = rand () % GRID_SIZE;
+  return;
+}
+
+
+static void
+vertical_up (struct dir_op *dir_op, const int len)
+{
+  dir_op->begin_row = (rand () % (GRID_SIZE - len)) + len;
+  dir_op->begin_col = rand () % GRID_SIZE;
+  return;
+}
+
+
+static void
+diaganol_down_right (struct dir_op *dir_op, const int len)
+{
+  dir_op->begin_row = (rand () % (GRID_SIZE - len));
+  dir_op->begin_col = (rand () % (GRID_SIZE - len));
+  return;
+}
+
+
+static void
+diaganol_down_left (struct dir_op *dir_op, const int len)
+{
+  dir_op->begin_row = (rand () % (GRID_SIZE - len));
+  dir_op->begin_col = (rand () % (GRID_SIZE - len)) + len;
+  return;
+}
+
+
+static void
+diaganol_up_right (struct dir_op *dir_op, const int len)
+{
+  dir_op->begin_row = (rand () % (GRID_SIZE - len)) + len;
+  dir_op->begin_col = rand () % (GRID_SIZE - len);
+  return;
+}
+
+
+static void
+diaganol_up_left (struct dir_op *dir_op, const int len)
+{
+  dir_op->begin_row = (rand () % (GRID_SIZE - len)) + len;
+  dir_op->begin_col = (rand () % (GRID_SIZE - len)) + len;
+  return;
+}
+
 
 /* TODO: To not punish the word server, use this for debugging */
 //const char *words[] = {
@@ -371,7 +440,6 @@ print_usage()
 int
 main (int argc, char **argv)
 {
-  struct dir_op dir_op;
   const int directions = 8;
   char puzzle[GRID_SIZE][GRID_SIZE];
   const int max_words_target = GRID_SIZE;
@@ -466,6 +534,18 @@ main (int argc, char **argv)
     *words[i] = '\0';
   }
 
+  // Make an array of function pointers
+  struct dir_op dir_op[] = {
+    {0, 0, 0, 1, horizontal},
+    {0, 0, 0, -1, horizontal_left},
+    {0, 0, 1, 0, vertical},
+    {0, 0, -1, 0, vertical_up},
+    {0, 0, 1, 1, diaganol_down_right},
+    {0, 0, 1, -1, diaganol_down_left},
+    {0, 0, -1, 1, diaganol_up_right},
+    {0, 0, -1, -1, diaganol_up_left}
+  };
+
   int n_string = 0;
   int f_string = 0;
   while ((n_string < max_words_target) && n_tot_err < max_tot_err_allowed)
@@ -495,59 +575,8 @@ main (int argc, char **argv)
         //rnd = 1;
       }
 
-      switch (cur_dir)
-      {
-      case HORIZONTAL:
-        dir_op.begin_row = rand () % GRID_SIZE;
-        dir_op.begin_col = rand () % (GRID_SIZE - len);
-        dir_op.row = 0;
-        dir_op.col = 1;
-        break;
-      case HORIZONTAL_BACKWARD:
-        dir_op.begin_row = rand () % GRID_SIZE;
-        dir_op.begin_col = (rand () % (GRID_SIZE - len)) + len;
-        dir_op.row = 0;
-        dir_op.col = -1;
-        break;
-      case VERTICAL:
-        dir_op.begin_row = rand () % (GRID_SIZE - len);
-        dir_op.begin_col = rand () % GRID_SIZE;
-        dir_op.row = 1;
-        dir_op.col = 0;
-        break;
-      case VERTICAL_UP:
-        dir_op.begin_row = (rand () % (GRID_SIZE - len)) + len;
-        dir_op.begin_col = rand () % GRID_SIZE;
-        dir_op.row = -1;
-        dir_op.col = 0;
-        break;
-      case DIAGANOL_DOWN_RIGHT:
-        dir_op.row = (rand () % (GRID_SIZE - len));
-        dir_op.col = (rand () % (GRID_SIZE - len));
-        dir_op.row = 1;
-        dir_op.col = 1;
-        break;
-      case DIAGANOL_DOWN_LEFT:
-        dir_op.begin_row = (rand () % (GRID_SIZE - len));
-        dir_op.begin_col = (rand () % (GRID_SIZE - len)) + len;
-        dir_op.row = 1;
-        dir_op.col = -1;
-        break;
-      case DIAGANOL_UP_RIGHT:
-        dir_op.begin_row = (rand () % (GRID_SIZE - len)) + len;
-        dir_op.begin_col = rand () % (GRID_SIZE - len);
-        dir_op.row = -1;
-        dir_op.col = 1;
-        break;
-      case DIAGANOL_UP_LEFT:
-        dir_op.begin_row = (rand () % (GRID_SIZE - len)) + len;
-        dir_op.begin_col = (rand () % (GRID_SIZE - len)) + len;
-        dir_op.row = -1;
-        dir_op.col = -1;
-        break;
-      }
-
-      r = direction (&dir_op, len, words[n_string], puzzle);
+      dir_op[cur_dir].direction (&dir_op[cur_dir], len);
+      r = direction (&dir_op[cur_dir], len, words[n_string], puzzle);
       if (r == 0)
         break;
     }
@@ -556,9 +585,7 @@ main (int argc, char **argv)
     {
       n_string++;
       f_string++;
-      cur_dir++;
-      if (cur_dir > directions - 1)
-        cur_dir = 0;
+      cur_dir > (directions - 1) ? cur_dir = 0 : cur_dir++;
     }
     else
     {
