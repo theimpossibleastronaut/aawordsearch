@@ -3,6 +3,12 @@ aawordsearch ChangeLog
 2021-12-01
 
   * Add command line options
+  * v0.1.1 released
+
+2021-11-30
+
+  * Only connect to server once (fetch multiple words using ?number=)
+
 
 2021-11-30
 

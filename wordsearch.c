@@ -36,7 +36,7 @@
 #include <getopt.h>
 #include <stdbool.h>
 
-#define VERSION "0.1.0999"
+#define VERSION "0.1.1"
 #define PROGRAM_NAME "aawordsearch"
 // n * n grid
 const int GRID_SIZE = 20;       // n
@@ -378,9 +378,9 @@ main (int argc, char **argv)
   const int fetch_count = max_words_target * 1.4;
   char fetched_words[fetch_count][BUFSIZ];
   // const size_t n_max_words = sizeof(words)/sizeof(words[0]);
-  
+
   bool log = false;
-  
+
   const struct option long_options[] = {
     {"help", no_argument, NULL, 'h'},
     {"log", no_argument, NULL, 'l'},
@@ -546,7 +546,7 @@ main (int argc, char **argv)
         dir_op.col = -1;
         break;
       }
-      
+
       r = direction (&dir_op, len, words[n_string], puzzle);
       if (r == 0)
         break;
