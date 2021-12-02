@@ -574,8 +574,18 @@ main (int argc, char **argv)
         cur_dir = rand () % directions;
         //rnd = 1;
       }
-
-      dir_op[cur_dir].direction (&dir_op[cur_dir], len);
+      char point;
+      int ctr;
+      // increase the odds of a word being place by checking to see if
+      // only the first character can be placed. If not, try again using
+      // the same direction but different random coordinates
+      for (ctr = 0; ctr < 40; ctr++)
+      {
+        dir_op[cur_dir].direction (&dir_op[cur_dir], len);
+        point = puzzle[dir_op[cur_dir].begin_row][dir_op[cur_dir].begin_col];
+        if (point == *words[n_string] || point == fill_char)
+          break;
+      }
       r = direction (&dir_op[cur_dir], len, words[n_string], puzzle);
       if (r == 0)
         break;
