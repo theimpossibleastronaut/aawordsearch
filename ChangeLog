@@ -2,6 +2,11 @@ aawordsearch ChangeLog
 
 2021-12-01
 
+  * Fix placement for diaganol_down_right (use begin_row, begin_col,
+  not row, col)
+
+2021-12-01
+
   * Add command line options
   * v0.1.1 released
 
