@@ -427,7 +427,7 @@ write_log (const char words[][BUFSIZ], const char puzzle[][GRID_SIZE],
 {
   {
     char log_file[BUFSIZ];
-    snprintf (log_file, BUFSIZ, "wordsearch_%lu.log", seed);
+    snprintf (log_file, BUFSIZ, "aawordsearch_%lu.log", seed);
     FILE *fp = fopen (log_file, "w");
     if (fp != NULL)
     {

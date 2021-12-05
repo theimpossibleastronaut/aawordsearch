@@ -63,7 +63,7 @@ jobs:
     #    uses a compiled language
 
     - run: |
-       gcc -Wall wordsearch.c -o wordsearch
+       gcc -Wall aawordsearch.c -o aawordsearch
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v1

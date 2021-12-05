@@ -1,3 +1,5 @@
-/wordsearch
-/wordsearch.o
-/wordsearch*.log
+/aawordsearch
+*.o
+/*.log
+*~
+

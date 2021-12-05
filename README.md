@@ -7,7 +7,7 @@ which uses
 
 ## Compile
 
-    gcc -Wall wordsearch.c -o wordsearch
+    gcc -Wall aawordsearch.c -o aawordsearch
 
 ## Example Output
 
