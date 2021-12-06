@@ -142,30 +142,34 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
   char buf[BUFSIZ + 10];
   *buf = '\0';
   int bytes;
-  do
-  {
-    /* Get "BUFSIZ" bytes from "s". */
-    bytes = recv (s, srv_str, BUFSIZ, 0);
-    fail (bytes == -1, "%s\n", strerror (errno));
+  int bytes_total = 0;
 
-    /* Nul-terminate the string before printing. */
-    // srv[bytes] = '\0';
-    int max_len = BUFSIZ - strlen (buf);
+  /* Loop until there is no data left to be read
+  (see the recv man page for return codes) */
+  while ((bytes = recv (s, srv_str, BUFSIZ, 0)) > 0)
+  {
+
+    int max_len = BUFSIZ - bytes_total;
     // concatenate the string each iteration of the loop
-    status = snprintf (buf + strlen (buf), max_len, "%s", srv_str);
+    status = snprintf (buf + bytes_total, max_len, "%s", srv_str);
     if (status >= max_len)
     {
       fputs ("snprintf failed.", stderr);
       return -1;
     }
+    bytes_total += bytes;
   }
-  while (bytes > 0);
 
   if (close (s) != 0)
   {
     fputs ("Error closing socket\n", stderr);
     return -1;
   }
+  
+  fail (bytes == -1, "%s\n", strerror (errno));
+
+  if (bytes_total == 0)
+    return -1;
 
   const char open_bracket[] = "[\"";
   const char closed_bracket[] = "\"]";
