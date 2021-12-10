@@ -25,6 +25,14 @@ or your regular compiler:
 
     gcc/clang -Wall aawordsearch.c -o aawordsearch
 
+## Run
+
+To run the program:
+
+    ./aawordsearch
+
+To enable logging, use `--log`.
+
 ## Test
 
 If using meson, you can optionally run the tests (usually they are only
@@ -33,6 +41,7 @@ check your code changes):
 
     meson test
     meson test --setup=valgrind
+
 
 ## Example Output
 

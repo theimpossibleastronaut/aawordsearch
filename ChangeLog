@@ -1,5 +1,12 @@
 aawordsearch ChangeLog
 
+2021-12-10
+
+  * Add meson build system
+  * Add tests
+  * Fix help output (--log)
+  * release v0.1.2
+
 2021-12-01
 
   * Fix placement for diagonal_down_right (use begin_row, begin_col,
