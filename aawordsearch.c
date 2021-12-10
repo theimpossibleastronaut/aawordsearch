@@ -36,7 +36,120 @@
 #include <getopt.h>
 #include <stdbool.h>
 
-#include "globals.h"
+#ifndef VERSION
+#define VERSION "_unversioned"
+#endif
+
+#ifndef PROGRAM_NAME
+#define PROGRAM_NAME "aawordsearch"
+#endif
+
+// n * n grid
+const int GRID_SIZE = 20;       // n
+const int MAX_LEN = GRID_SIZE - 2;
+const int N_DIRECTIONS = 8;
+
+const char HOST[] = "random-word-api.herokuapp.com";
+const char PAGE[] = "word";
+const char PROTOCOL[] = "http";
+
+const char fill_char = '-';
+
+typedef struct dir_op
+{
+  int begin_row;
+  int begin_col;
+  const int row;
+  const int col;
+} dir_op;
+
+enum
+{
+  HORIZONTAL_NOOP,
+  HORIZONTAL_INC
+};
+enum
+{
+  HORIZONTAL_BACKWARD_DEC = -1,
+  HORIZONTAL_BACKWARD_NOOP
+};
+enum
+{
+  VERTICAL_NOOP,
+  VERTICAL_INC
+};
+enum
+{
+  VERTICAL_UP_DEC = -1,
+  VERTICAL_UP_NOOP
+};
+enum
+{
+  DIAGONAL_DOWN_RIGHT_INC = 1,
+};
+enum
+{
+  DIAGONAL_DOWN_LEFT_DEC = -1,
+  DIAGONAL_DOWN_LEFT_INC = 1,
+};
+enum
+{
+  DIAGONAL_UP_RIGHT_DEC = -1,
+  DIAGONAL_UP_RIGHT_INC = 1,
+};
+enum
+{
+  DIAGONAL_UP_LEFT_DEC = -1,
+};
+
+
+static int
+dec (const int len)
+{
+  return (rand () % (GRID_SIZE - len)) + len;
+}
+
+
+static int
+noop (const int len)
+{
+  // poor person's way to prevent the compiler warning about an unused function parameter
+  if (len < 0)
+    return len;
+
+  return rand () % GRID_SIZE;
+}
+
+
+static int
+inc (const int len)
+{
+  return rand () % (GRID_SIZE - len);
+}
+
+
+// Create an array of function pointers
+static int (*op[]) (const int) = {
+  dec,
+  noop,
+  inc
+};
+
+
+static int
+get_row_op (const int op)
+{
+  // Adding 1 so accessing op[-1]() never happens
+  return op + 1;
+}
+
+
+static int
+get_col_op (const int op)
+{
+  return op + 1;
+}
+
 
 void
 init_puzzle (char puzzle[][GRID_SIZE])
@@ -75,7 +188,7 @@ fail (int test, const char *format, ...)
 }
 
 
-static int
+static inline int
 get_words (char str[][BUFSIZ], const int fetch_count)
 {
   struct addrinfo hints, *res, *res0;
@@ -145,10 +258,9 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
   int bytes_total = 0;
 
   /* Loop until there is no data left to be read
-  (see the recv man page for return codes) */
+     (see the recv man page for return codes) */
   while ((bytes = recv (s, srv_str, BUFSIZ, 0)) > 0)
   {
-
     int max_len = BUFSIZ - bytes_total;
     // concatenate the string each iteration of the loop
     status = snprintf (buf + bytes_total, max_len, "%s", srv_str);
@@ -165,7 +277,7 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
     fputs ("Error closing socket\n", stderr);
     return -1;
   }
-  
+
   fail (bytes == -1, "%s\n", strerror (errno));
 
   if (bytes_total == 0)
@@ -210,31 +322,29 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
 
 
 int
-check (const int row, const int col, const char puzzle[][GRID_SIZE],
-       const char c)
+check (const int row, const int col, char puzzle[][GRID_SIZE], const char c)
 {
-  const int u = toupper (c);
-  if (u == puzzle[row][col] || puzzle[row][col] == fill_char)
+  if (c == puzzle[row][col] || puzzle[row][col] == fill_char)
     return 0;
 
   return -1;
 }
 
 
-static int
-placer (dir_op * dir_op, const int len, const char *str,
-        char puzzle[][GRID_SIZE])
+static inline int
+placer (dir_op * dir_op, const char *str, char puzzle[][GRID_SIZE])
 {
   int row = dir_op->begin_row;
   int col = dir_op->begin_col;
   char *ptr = (char *) str;
   while (*ptr != '\0')
   {
-    if (check (row, col, puzzle, *ptr) == -1)
+    const int u = toupper (*ptr);
+    if (check (row, col, puzzle, u) == -1)
       return -1;
     ptr++;
-    col += dir_op->col;
     row += dir_op->row;
+    col += dir_op->col;
   }
 
   row = dir_op->begin_row;
@@ -242,7 +352,8 @@ placer (dir_op * dir_op, const int len, const char *str,
   ptr = (char *) str;
   while (*ptr != '\0')
   {
-    puzzle[row][col] = toupper (*ptr);
+    const int u = toupper (*ptr);
+    puzzle[row][col] = u;
     ptr++;
     col += dir_op->col;
     row += dir_op->row;
@@ -252,7 +363,7 @@ placer (dir_op * dir_op, const int len, const char *str,
 
 
 void
-print_answer_key (FILE * restrict stream, const char puzzle[][GRID_SIZE])
+print_answer_key (FILE * restrict stream, char puzzle[][GRID_SIZE])
 {
   int i, j;
   fputs (" ==] Answer key [==\n", stream);
@@ -270,7 +381,7 @@ print_answer_key (FILE * restrict stream, const char puzzle[][GRID_SIZE])
 
 
 void
-print_puzzle (FILE * restrict stream, const char puzzle[][GRID_SIZE])
+print_puzzle (FILE * restrict stream, char puzzle[][GRID_SIZE])
 {
   int i, j;
   for (i = 0; i < GRID_SIZE; i++)
@@ -291,8 +402,7 @@ print_puzzle (FILE * restrict stream, const char puzzle[][GRID_SIZE])
 
 
 static void
-print_words (FILE * restrict stream, const char words[][BUFSIZ],
-             const char puzzle[][GRID_SIZE], const int n_string)
+print_words (FILE * restrict stream, char words[][BUFSIZ], const int n_string)
 {
   int i = 0;
   while (i < n_string)
@@ -309,82 +419,22 @@ print_words (FILE * restrict stream, const char words[][BUFSIZ],
   return;
 }
 
-//struct dir_test
-//{
 
-//};
-
-static void
-horizontal (dir_op * dir_op, const int len)
+dir_op *
+create_dir_op ()
 {
-  dir_op->begin_row = rand () % GRID_SIZE;
-  dir_op->begin_col = rand () % (GRID_SIZE - len);
-  return;
+  static dir_op dir_ops[] = {
+    {0, 0, HORIZONTAL_NOOP, HORIZONTAL_INC},
+    {0, 0, HORIZONTAL_BACKWARD_NOOP, HORIZONTAL_BACKWARD_DEC},
+    {0, 0, VERTICAL_INC, VERTICAL_NOOP},
+    {0, 0, VERTICAL_UP_DEC, VERTICAL_UP_NOOP},
+    {0, 0, DIAGONAL_DOWN_RIGHT_INC, DIAGONAL_DOWN_RIGHT_INC},
+    {0, 0, DIAGONAL_DOWN_LEFT_INC, DIAGONAL_DOWN_LEFT_DEC},
+    {0, 0, DIAGONAL_UP_RIGHT_DEC, DIAGONAL_UP_RIGHT_INC},
+    {0, 0, DIAGONAL_UP_LEFT_DEC, DIAGONAL_UP_LEFT_DEC}
+  };
+  return dir_ops;
 }
-
-
-static void
-horizontal_left (dir_op * dir_op, const int len)
-{
-  dir_op->begin_row = rand () % GRID_SIZE;
-  dir_op->begin_col = (rand () % (GRID_SIZE - len)) + len;
-  return;
-}
-
-
-static void
-vertical (dir_op * dir_op, const int len)
-{
-  dir_op->begin_row = rand () % (GRID_SIZE - len);
-  dir_op->begin_col = rand () % GRID_SIZE;
-  return;
-}
-
-
-static void
-vertical_up (dir_op * dir_op, const int len)
-{
-  dir_op->begin_row = (rand () % (GRID_SIZE - len)) + len;
-  dir_op->begin_col = rand () % GRID_SIZE;
-  return;
-}
-
-
-static void
-diaganol_down_right (dir_op * dir_op, const int len)
-{
-  dir_op->begin_row = (rand () % (GRID_SIZE - len));
-  dir_op->begin_col = (rand () % (GRID_SIZE - len));
-  return;
-}
-
-
-static void
-diaganol_down_left (dir_op * dir_op, const int len)
-{
-  dir_op->begin_row = (rand () % (GRID_SIZE - len));
-  dir_op->begin_col = (rand () % (GRID_SIZE - len)) + len;
-  return;
-}
-
-
-static void
-diaganol_up_right (dir_op * dir_op, const int len)
-{
-  dir_op->begin_row = (rand () % (GRID_SIZE - len)) + len;
-  dir_op->begin_col = rand () % (GRID_SIZE - len);
-  return;
-}
-
-
-static void
-diaganol_up_left (dir_op * dir_op, const int len)
-{
-  dir_op->begin_row = (rand () % (GRID_SIZE - len)) + len;
-  dir_op->begin_col = (rand () % (GRID_SIZE - len)) + len;
-  return;
-}
-
 
 /* TODO: To not punish the word server, use this for debugging */
 //const char *words[] = {
@@ -419,14 +469,14 @@ diaganol_up_left (dir_op * dir_op, const int len)
 void
 print_usage ()
 {
-  printf ("\n\
+  puts ("\n\
   -h, --help                show help for command line options\n\
   -V, --version             show the program version number\n\
-  -l, --list                list waste directories\n");
+  -l, --log                 log the output to a file (in addition to stdout)");
 }
 
-static int
-write_log (const char words[][BUFSIZ], const char puzzle[][GRID_SIZE],
+static inline int
+write_log (char words[][BUFSIZ], char puzzle[][GRID_SIZE],
            const long unsigned seed, const int n_string)
 {
   {
@@ -438,7 +488,7 @@ write_log (const char words[][BUFSIZ], const char puzzle[][GRID_SIZE],
       fprintf (fp, "seed = %lu\n\n", seed);
       print_answer_key (fp, puzzle);
       print_puzzle (fp, puzzle);
-      print_words (fp, words, puzzle, n_string);
+      print_words (fp, words, n_string);
     }
     else
     {
@@ -451,7 +501,7 @@ write_log (const char words[][BUFSIZ], const char puzzle[][GRID_SIZE],
       fprintf (stderr, "Error closing %s\n", log_file);
 
     char word_log_file[BUFSIZ];
-    snprintf (word_log_file, BUFSIZ, "wordsearch_words_%lu.log", seed);
+    snprintf (word_log_file, BUFSIZ, "aawordsearch_words_%lu.log", seed);
     fp = fopen (word_log_file, "w");
     if (fp != NULL)
     {
@@ -468,6 +518,8 @@ write_log (const char words[][BUFSIZ], const char puzzle[][GRID_SIZE],
   return 0;
 }
 
+
+#ifndef TEST
 int
 main (int argc, char **argv)
 {
@@ -476,6 +528,7 @@ main (int argc, char **argv)
   // this probably means the word server is having issues. If this number is exceeded,
   // we'll quit completely
   const int max_tot_err_allowed = 10;
+  const int max_tries_per_direction = GRID_SIZE * 5;
   char puzzle[GRID_SIZE][GRID_SIZE];
 
   char fetched_words[fetch_count][BUFSIZ];
@@ -491,8 +544,7 @@ main (int argc, char **argv)
   };
 
   int c;
-  while ((c =
-          getopt_long (argc, argv, "hlV", long_options, NULL)) != -1)
+  while ((c = getopt_long (argc, argv, "hlV", long_options, NULL)) != -1)
   {
     switch ((char) c)
     {
@@ -504,7 +556,8 @@ main (int argc, char **argv)
       puts ("The log will be activated! Hooray!");
       break;
     case 'V':
-      printf ("%s v%s\n\n", PROGRAM_NAME, VERSION);
+      // printf ("%s v%s\n\n", PROGRAM_NAME, VERSION);
+      puts (PROGRAM_NAME " " VERSION "\n");
       return 0;
     case '?':
       printf ("Try '%s --help' for more information.\n", argv[0]);
@@ -555,21 +608,9 @@ main (int argc, char **argv)
     *words[i] = '\0';
   }
 
-  // Make an array of function pointers
-  dir_op dir_op[] = {
-    {0, 0, 0, 1, horizontal},
-    {0, 0, 0, -1, horizontal_left},
-    {0, 0, 1, 0, vertical},
-    {0, 0, -1, 0, vertical_up},
-    {0, 0, 1, 1, diaganol_down_right},
-    {0, 0, 1, -1, diaganol_down_left},
-    {0, 0, -1, 1, diaganol_up_right},
-    {0, 0, -1, -1, diaganol_up_left}
-  };
-
-  const int n_directions = sizeof(dir_op)/sizeof(dir_op[0]);
-
+  dir_op *dir_op = create_dir_op ();
   int n_string = 0, f_string = 0;
+  int cur_dir = 0;
   while ((n_string < max_words_target) && n_tot_err < max_tot_err_allowed)
   {
     strcpy (words[n_string], fetched_words[f_string]);
@@ -584,43 +625,32 @@ main (int argc, char **argv)
 
     printf ("%d.) %s\n", n_string + 1, words[n_string]);
 
-    const int max_tries = GRID_SIZE * 4;
-    int cur_dir = 0;
-    int tries = 0;
-    // The word will be skipped if a place can't be found
-    for (tries = 0; tries < max_tries; tries++)
+    // Try placing the word in all 8 directions, each direction at most
+    // max_tries_per_direction. If successful, break from both loops and get
+    // the next word.
+    int d;
+    for (d = 0; d < N_DIRECTIONS; d++)
     {
-      // int rnd;
-      // After n number of tries, try different n_directions.
-      if (max_tries / 2)
-      {
-        cur_dir = rand () % n_directions;
-        //rnd = 1;
-      }
-      char point;
       int ctr;
-      // increase the odds of a word being place by checking to see if
-      // only the first character can be placed. If not, try again using
-      // the same direction but different random coordinates
-      for (ctr = 0; ctr < 40; ctr++)
+      for (ctr = 0; ctr < max_tries_per_direction; ctr++)
       {
-        dir_op[cur_dir].direction (&dir_op[cur_dir], len);
-        point = puzzle[dir_op[cur_dir].begin_row][dir_op[cur_dir].begin_col];
-        if (point == *words[n_string] || point == fill_char)
+        dir_op[cur_dir].begin_row =
+          op[get_row_op (dir_op[cur_dir].row)] (len);
+        dir_op[cur_dir].begin_col =
+          op[get_col_op (dir_op[cur_dir].col)] (len);
+        r = placer (&dir_op[cur_dir], words[n_string], puzzle);
+        if (!r)
+        {
+          n_string++;
+          f_string++;
           break;
+        }
       }
-      r = placer (&dir_op[cur_dir], len, words[n_string], puzzle);
-      if (r == 0)
+      cur_dir == N_DIRECTIONS - 1 ? cur_dir = 0 : cur_dir++;
+      if (!r)
         break;
     }
-
-    if (r == 0)
-    {
-      n_string++;
-      f_string++;
-      cur_dir > (n_directions - 1) ? cur_dir = 0 : cur_dir++;
-    }
-    else
+    if (r)
     {
       n_tot_err++;
       printf ("Unable to find a place for '%s'\n", words[n_string]);
@@ -636,7 +666,7 @@ main (int argc, char **argv)
 
   print_answer_key (stdout, puzzle);
   print_puzzle (stdout, puzzle);
-  print_words (stdout, words, puzzle, n_string);
+  print_words (stdout, words, n_string);
 
   // write the seed, answer key, and puzzle to a file
   if (want_log)
@@ -645,3 +675,142 @@ main (int argc, char **argv)
 
   return 0;
 }
+#else
+
+/* assert() doesn't nothing if NDEBUG is defined, so let's make sure it's undefined
+before including the header */
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
+#include <assert.h>
+
+enum
+{
+  HORIZONTAL,
+  HORIZONTAL_BACKWARD,
+  VERTICAL,
+  VERTICAL_UP,
+  DIAGONAL_DOWN_RIGHT,
+  DIAGONAL_DOWN_LEFT,
+  DIAGONAL_UP_RIGHT,
+  DIAGONAL_UP_LEFT
+};
+
+
+void
+test_dir_ops (dir_op * dir_op)
+{
+  /* loop through each direction once to make sure the corresponding
+     constants (3rd and 4th fields) are correct */
+  int i;
+  for (i = 0; i < N_DIRECTIONS; i++)
+  {
+    switch (i)
+    {
+    case HORIZONTAL:
+      assert (dir_op[i].row == HORIZONTAL_NOOP);
+      assert (dir_op[i].col == HORIZONTAL_INC);
+      break;
+    case HORIZONTAL_BACKWARD:
+      assert (dir_op[i].row == HORIZONTAL_BACKWARD_NOOP);
+      assert (dir_op[i].col == HORIZONTAL_BACKWARD_DEC);
+      break;
+    case VERTICAL:
+      assert (dir_op[i].row == VERTICAL_INC);
+      assert (dir_op[i].col == VERTICAL_NOOP);
+      break;
+    case VERTICAL_UP:
+      assert (dir_op[i].row == VERTICAL_UP_DEC);
+      assert (dir_op[i].col == VERTICAL_UP_NOOP);
+      break;
+    case DIAGONAL_DOWN_RIGHT:
+      assert (dir_op[i].row == DIAGONAL_DOWN_RIGHT_INC);
+      assert (dir_op[i].col == DIAGONAL_DOWN_RIGHT_INC);
+      break;
+    case DIAGONAL_DOWN_LEFT:
+      assert (dir_op[i].row == DIAGONAL_DOWN_LEFT_INC);
+      assert (dir_op[i].col == DIAGONAL_DOWN_LEFT_DEC);
+      break;
+    case DIAGONAL_UP_RIGHT:
+      assert (dir_op[i].row == DIAGONAL_UP_RIGHT_DEC);
+      assert (dir_op[i].col == DIAGONAL_UP_RIGHT_INC);
+      break;
+    case DIAGONAL_UP_LEFT:
+      assert (dir_op[i].row == DIAGONAL_UP_LEFT_DEC);
+      assert (dir_op[i].col == DIAGONAL_UP_LEFT_DEC);
+      break;
+    }
+  }
+  return;
+}
+
+
+/* loop through each direction 50? times to make sure that the random numbers
+generated don't exceed the desired values */
+void
+test_starting_points (dir_op * dir_op, const int len)
+{
+  int i, j;
+  int row, col;
+  for (i = 0; i < N_DIRECTIONS; i++)
+  {
+    fprintf (stderr, "i:%d\n", i);
+    for (j = 0; j < GRID_SIZE * 5; j++)
+    {
+      row = op[get_row_op (dir_op[i].row)] (len);
+      col = op[get_col_op (dir_op[i].col)] (len);
+      // fprintf (stderr, "%d", row);
+      // fprintf (stderr, "%d", col);
+      switch (i)
+      {
+      case HORIZONTAL:
+        assert (row >= 0 && row < GRID_SIZE);
+        assert (col >= 0 && col < GRID_SIZE - len);
+        break;
+      case HORIZONTAL_BACKWARD:
+        assert (row >= 0 && row < GRID_SIZE);
+        assert (col >= len && col < GRID_SIZE);
+        break;
+      case VERTICAL:
+        assert (row >= 0 && row < GRID_SIZE - len);
+        assert (col >= 0 && col < GRID_SIZE);
+        break;
+      case VERTICAL_UP:
+        assert (row >= 0 && row < GRID_SIZE);
+        assert (row >= len && row < GRID_SIZE);
+        break;
+      case DIAGONAL_DOWN_RIGHT:
+        assert (row >= 0 && row < GRID_SIZE - len);
+        assert (col >= 0 && col < GRID_SIZE - len);
+        break;
+      case DIAGONAL_DOWN_LEFT:
+        assert (row >= 0 && row < GRID_SIZE - len);
+        assert (col >= len && col < GRID_SIZE);
+        break;
+      case DIAGONAL_UP_RIGHT:
+        assert (row >= 0 && row < GRID_SIZE);
+        assert (col >= 0 && col < GRID_SIZE - len);
+        break;
+      case DIAGONAL_UP_LEFT:
+        assert (row >= 0 && row < GRID_SIZE);
+        assert (col >= len && col < GRID_SIZE);
+        break;
+      }
+    }
+  }
+  return;
+}
+
+
+int
+main (void)
+{
+  dir_op *dir_op = create_dir_op ();
+
+  test_dir_ops (dir_op);
+  test_starting_points (dir_op, 5);
+  test_starting_points (dir_op, GRID_SIZE - 2);
+
+  return 0;
+}
+#endif

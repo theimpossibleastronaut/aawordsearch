@@ -1,0 +1,39 @@
+name: C/C++ CI
+
+on:
+  push:
+    paths-ignore:
+    - '**/*.md'
+    - '.github/workflows/codeql-analysis.yml'
+  pull_request:
+    paths-ignore:
+    - '**/*.md'
+    - '.github/workflows/codeql-analysis.yml'
+
+jobs:
+  Ubuntu:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install Dependencies
+      run: sudo apt-get install -y meson
+    - run: |
+        meson _build
+        cd _build
+        ninja -v
+        ninja test
+
+  MacOS:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: Install Dependencies
+      run: |
+        brew install meson
+    - run: |
+        meson _build
+        cd _build
+        ninja -v
+        ninja test

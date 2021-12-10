@@ -2,7 +2,7 @@ aawordsearch ChangeLog
 
 2021-12-01
 
-  * Fix placement for diaganol_down_right (use begin_row, begin_col,
+  * Fix placement for diagonal_down_right (use begin_row, begin_col,
   not row, col)
 
 2021-12-01

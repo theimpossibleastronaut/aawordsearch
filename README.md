@@ -1,13 +1,38 @@
 # aawordsearch
 
-Generates a wordsearch puzzle (and its corresponding answer key) using
+Generates a wordsearch puzzle (and its corresponding answer key) with
 words randomly fetched from https://random-word-api.herokuapp.com/word,
 which uses
 [random-word-api](https://github.com/RazorSh4rk/random-word-api).
 
-## Compile
+[![codeql-badge]][codeql-url]
+[![c-cpp-badge]][c-cpp-url]
 
-    gcc -Wall aawordsearch.c -o aawordsearch
+[c-cpp-badge]: https://github.com/theimpossibleastronaut/aawordsearch/actions/workflows/c-cpp.yml/badge.svg
+[c-cpp-url]: https://github.com/theimpossibleastronaut/aawordsearch/actions/workflows/c-cpp.yml
+[codeql-badge]: https://github.com/theimpossibleastronaut/aawordsearch/workflows/CodeQL/badge.svg
+[codeql-url]: https://github.com/theimpossibleastronaut/aawordsearch/actions?query=workflow%3ACodeQL
+
+## Build
+
+You can use [meson](https://mesonbuild.com/):
+
+    meson builddir
+    cd builddir
+    ninja
+
+or your regular compiler:
+
+    gcc/clang -Wall aawordsearch.c -o aawordsearch
+
+## Test
+
+If using meson, you can optionally run the tests (usually they are only
+required if you're working on a patch for aawordsearch and want to
+check your code changes):
+
+    meson test
+    meson test --setup=valgrind
 
 ## Example Output
 
