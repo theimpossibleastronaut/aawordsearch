@@ -524,7 +524,7 @@ int
 main (int argc, char **argv)
 {
   const int max_words_target = GRID_SIZE;
-  const int fetch_count = max_words_target * 1.4;
+  const int fetch_count = max_words_target * 1.2;
   // this probably means the word server is having issues. If this number is exceeded,
   // we'll quit completely
   const int max_tot_err_allowed = 10;
