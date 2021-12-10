@@ -11,6 +11,7 @@ extra_flags = [
   '-fanalyzer',
   '-Wformat-security',
   '-Wformat-overflow=2',
+  '-Wstrict-overflow=5',
   '-DPROGRAM_NAME="@0@"'.format(meson.project_name()),
   '-DVERSION="@0@"'.format(meson.project_version())
 ]
