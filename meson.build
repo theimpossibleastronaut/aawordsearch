@@ -22,8 +22,10 @@ foreach cflag : extra_flags
   endif
 endforeach
 
+src = 'aawordsearch.c'
+
 executable(meson.project_name(),
-           'aawordsearch.c')
+           src)
 
 vg = find_program('valgrind', required : false)
 
@@ -35,5 +37,5 @@ add_test_setup('valgrind',
 endif
 
 test_bin_name = 'test_'+meson.project_name()
-e = executable(test_bin_name, 'aawordsearch.c', c_args : ['-DTEST'])
+e = executable(test_bin_name, src, c_args : ['-DTEST'])
 test(test_bin_name, e)
