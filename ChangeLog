@@ -1,5 +1,9 @@
 aawordsearch ChangeLog
 
+2021-12-11
+
+  * Add '-o, --offline' option (primarily for testing)
+
 2021-12-10
 
   * Add meson build system

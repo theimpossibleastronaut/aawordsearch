@@ -102,6 +102,36 @@ enum
   DIAGONAL_UP_LEFT_DEC = -1,
 };
 
+const char *offline_test_words[] = {
+  "received",
+  "software",
+  "creaminess",
+  "version",
+  "shielding",
+  "foundation",
+  "General",
+  "overweening",
+  "Public",
+  "paradoxical",
+  "telemetrically",
+  "distributed",
+  "California",
+  "sarsaparillas",
+  "Honeymoon",
+  "simpson",
+  "incredible",
+  "MERCHANTABILITYMERCHANTABILITY",
+  "warranty",
+  "temperate",
+  "london",
+  "tremendous",
+  "desperate",
+  "starship",
+  "enterprise",
+};
+
+const int n_offline_words = sizeof(offline_test_words)/sizeof(offline_test_words[0]);
+
 
 static int
 dec (const int len)
@@ -436,43 +466,15 @@ create_dir_op ()
   return dir_ops;
 }
 
-/* TODO: To not punish the word server, use this for debugging */
-//const char *words[] = {
-  //"received",
-  //"software",
-  //"purpose",
-  //"version",
-  //"program",
-  //"foundation",
-  //"General",
-  //"Public",
-  //"License",
-  //"distributed",
-  //"California",
-  //"Mainland",
-  //"Honeymoon",
-  //"simpson",
-  //"incredible",
-  //"MERCHANTABILITYMERCHANTABILITY",
-  //"warranty",
-  //"temperate",
-  //"london",
-  //"tremendous",
-  //"desperate",
-  //"paradoxical",
-  //"starship",
-  //"enterprise",
-  //NULL
-//};
 
-// const size_t n_strings = sizeof(strings)/sizeof(strings[0]);
 void
 print_usage ()
 {
   puts ("\n\
   -h, --help                show help for command line options\n\
   -V, --version             show the program version number\n\
-  -l, --log                 log the output to a file (in addition to stdout)");
+  -l, --log                 log the output to a file (in addition to stdout)\n\
+  -o, --offline             Use offline (primarily for testing purposes)");
 }
 
 static inline int
@@ -531,20 +533,19 @@ main (int argc, char **argv)
   const int max_tries_per_direction = GRID_SIZE * 5;
   char puzzle[GRID_SIZE][GRID_SIZE];
 
-  char fetched_words[fetch_count][BUFSIZ];
-  // const size_t n_max_words = sizeof(words)/sizeof(words[0]);
-
   bool want_log = false;
+  bool offline = false;
 
   const struct option long_options[] = {
     {"help", no_argument, NULL, 'h'},
     {"log", no_argument, NULL, 'l'},
     {"version", no_argument, NULL, 'V'},
+    {"offline", no_argument, NULL, 'o'},
     {0, 0, 0, 0}
   };
 
   int c;
-  while ((c = getopt_long (argc, argv, "hlV", long_options, NULL)) != -1)
+  while ((c = getopt_long (argc, argv, "hlVo", long_options, NULL)) != -1)
   {
     switch ((char) c)
     {
@@ -554,6 +555,9 @@ main (int argc, char **argv)
     case 'l':
       want_log = true;
       puts ("The log will be activated! Hooray!");
+      break;
+    case 'o':
+      offline = true;
       break;
     case 'V':
       // printf ("%s v%s\n\n", PROGRAM_NAME, VERSION);
@@ -576,29 +580,34 @@ main (int argc, char **argv)
     putchar ('\n');
   }
 
+  char fetched_words[offline ? n_offline_words : fetch_count][BUFSIZ];
+
   init_puzzle (puzzle);
 
   /* seed the random number generator */
-  const long unsigned int seed = time (NULL);
+  const time_t seed = time (NULL);
   srand (seed);
   int n_tot_err = 0;
 
-  printf ("Attempting to fetch %d words from %s...\n", max_words_target,
-          HOST);
-  int t = 0;
-  int r;
-  do
+  if (!offline)
   {
-    r = get_words (fetched_words, fetch_count);
-    if (r != 0)
-      n_tot_err++;
-  }
-  while (++t < 3 && r == -1);
+    printf ("Attempting to fetch %d words from %s...\n", max_words_target,
+            HOST);
+    int t = 0;
+    int r;
+    do
+    {
+      r = get_words (fetched_words, fetch_count);
+      if (r != 0)
+        n_tot_err++;
+    }
+    while (++t < 3 && r == -1);
 
-  if (r != 0)
-  {
-    fputs ("Failed to get words from server\n", stderr);
-    return -1;
+    if (r != 0)
+    {
+      fputs ("Failed to get words from server\n", stderr);
+      return -1;
+    }
   }
 
   int i;
@@ -608,27 +617,33 @@ main (int argc, char **argv)
     *words[i] = '\0';
   }
 
+  if (offline)
+  {
+    int i;
+    for (i = 0; i < fetch_count; i++)
+      strcpy (fetched_words[i], offline_test_words[i]);
+  }
+
   dir_op *dir_op = create_dir_op ();
   int n_string = 0, f_string = 0;
   int cur_dir = 0;
   while ((n_string < max_words_target) && n_tot_err < max_tot_err_allowed)
   {
-    strcpy (words[n_string], fetched_words[f_string]);
-    const int len = strlen (words[n_string]);
+    const int len = strlen (fetched_words[f_string]);
     if (len > MAX_LEN)          // skip the word if it exceeds this value
     {
-      printf ("word '%s' exceeded max length\n", words[n_string]);
-      *words[n_string] = '\0';
+      printf ("word '%s' exceeded max length\n", fetched_words[f_string]);
       f_string++;
       continue;
     }
 
+    strcpy (words[n_string], fetched_words[f_string]);
     printf ("%d.) %s\n", n_string + 1, words[n_string]);
 
     // Try placing the word in all 8 directions, each direction at most
     // max_tries_per_direction. If successful, break from both loops and get
     // the next word.
-    int d;
+    int d, r;
     for (d = 0; d < N_DIRECTIONS; d++)
     {
       int ctr;
@@ -640,15 +655,15 @@ main (int argc, char **argv)
           op[get_col_op (dir_op[cur_dir].col)] (len);
         r = placer (&dir_op[cur_dir], words[n_string], puzzle);
         if (!r)
-        {
-          n_string++;
-          f_string++;
           break;
-        }
       }
       cur_dir == N_DIRECTIONS - 1 ? cur_dir = 0 : cur_dir++;
       if (!r)
+      {
+        n_string++;
+        f_string++;
         break;
+      }
     }
     if (r)
     {
