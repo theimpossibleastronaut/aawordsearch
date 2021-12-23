@@ -535,17 +535,19 @@ main (int argc, char **argv)
 
   bool want_log = false;
   bool offline = false;
+  char *word_file_path = NULL;
 
   const struct option long_options[] = {
     {"help", no_argument, NULL, 'h'},
     {"log", no_argument, NULL, 'l'},
     {"version", no_argument, NULL, 'V'},
-    {"offline", no_argument, NULL, 'o'},
+    {"offline", optional_argument, NULL, 'o'},
     {0, 0, 0, 0}
   };
 
+  const char *short_options = "hlVo::";
   int c;
-  while ((c = getopt_long (argc, argv, "hlVo", long_options, NULL)) != -1)
+  while ((c = getopt_long (argc, argv, short_options, long_options, NULL)) != -1)
   {
     switch ((char) c)
     {
@@ -558,6 +560,7 @@ main (int argc, char **argv)
       break;
     case 'o':
       offline = true;
+      word_file_path = optarg;
       break;
     case 'V':
       // printf ("%s v%s\n\n", PROGRAM_NAME, VERSION);
@@ -580,7 +583,40 @@ main (int argc, char **argv)
     putchar ('\n');
   }
 
-  char fetched_words[offline ? n_offline_words : fetch_count][BUFSIZ];
+  char fetched_words[GRID_SIZE * 2][BUFSIZ];
+  int max_list_size = sizeof fetched_words / sizeof fetched_words[0];
+  
+  if (word_file_path != NULL)
+  {
+    FILE* fp = fopen(word_file_path, "r");
+    if (fp == NULL) {
+      fputs ("error opening word file: ", stderr);
+      perror (word_file_path);
+      return -1;
+    }
+    
+    int cur_word = 0;
+    while (cur_word < max_list_size && fgets (fetched_words[cur_word], sizeof fetched_words[0], fp) != NULL )
+    {
+      fetched_words[cur_word][strlen (fetched_words[cur_word]) - 1] = '\0';
+      cur_word++;
+    }
+
+    if (cur_word < max_words_target)
+    {
+      fprintf(stderr, "Your word list must contain at least %d words.\n", max_words_target);
+      return -1;
+    }
+    
+    if (fclose(fp) != 0)
+    {
+      fputs ("Error closing file:", stderr);
+      perror (word_file_path);
+      // errno is a global that's included with errno.h. Many common std 
+      // functions set it after they're called.
+      return errno; 
+    }
+  }
 
   init_puzzle (puzzle);
 
@@ -611,18 +647,22 @@ main (int argc, char **argv)
   }
 
   int i;
-  char words[max_words_target][BUFSIZ];
+  char words[GRID_SIZE * 2][BUFSIZ];
   for (i = 0; i < max_words_target; i++)
   {
     *words[i] = '\0';
   }
 
-  if (offline)
+  if (offline && word_file_path == NULL)
   {
     int i;
     for (i = 0; i < fetch_count; i++)
       strcpy (fetched_words[i], offline_test_words[i]);
   }
+  //else
+  //{
+  //  if (word_file_path != NULL)
+  //}
 
   dir_op *dir_op = create_dir_op ();
   int n_string = 0, f_string = 0;
