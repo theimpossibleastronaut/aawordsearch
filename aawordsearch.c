@@ -46,7 +46,7 @@
 
 // n * n grid
 const int GRID_SIZE = 20;       // n
-const int MAX_LEN = GRID_SIZE - 2;
+#define MAX_LEN (GRID_SIZE - 2)
 const int N_DIRECTIONS = 8;
 
 const char HOST[] = "random-word-api.herokuapp.com";
@@ -629,8 +629,8 @@ main (int argc, char **argv)
   int cur_dir = 0;
   while ((n_string < max_words_target) && n_tot_err < max_tot_err_allowed)
   {
-    const int len = strlen (fetched_words[f_string]);
-    if (len > MAX_LEN)          // skip the word if it exceeds this value
+    size_t len = strlen (fetched_words[f_string]);
+    if (len > (size_t)MAX_LEN)          // skip the word if it exceeds this value
     {
       printf ("word '%s' exceeded max length\n", fetched_words[f_string]);
       f_string++;
