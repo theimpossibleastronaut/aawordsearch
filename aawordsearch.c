@@ -471,10 +471,10 @@ void
 print_usage ()
 {
   puts ("\n\
-  -h, --help                show help for command line options\n\
-  -V, --version             show the program version number\n\
-  -l, --log                 log the output to a file (in addition to stdout)\n\
-  -o, --offline             Use offline (primarily for testing purposes)");
+  -h, --help                  show help for command line options\n\
+  -V, --version               show the program version number\n\
+  -l, --log                   log the output to a file (in addition to stdout)\n\
+  -o[FILE], --offline[=FILE]  Use offline (primarily for testing purposes)");
 }
 
 static inline int
@@ -518,6 +518,42 @@ write_log (char words[][BUFSIZ], char puzzle[][GRID_SIZE],
       fprintf (stderr, "Error closing %s\n", log_file);
   }
   return 0;
+}
+
+
+/*!
+ * Removes trailing white space from a string (including newlines, formfeeds,
+ * tabs, etc
+ * @param[out] str The string to be altered
+ * @return void
+ */
+static void
+trim_whitespace (char *str)
+{
+  if (str == NULL)
+    return;
+
+  char *pos_0 = str;
+  /* Advance pointer until NULL terminator is found */
+  while (*str != '\0')
+    str++;
+
+  /* set pointer to segment preceding NULL terminator */
+  if (str != pos_0)
+    str--;
+  else
+    return;
+
+  while (isspace (*str))
+  {
+    *str = '\0';
+    if (str != pos_0)
+      str--;
+    else
+      break;
+  }
+
+  return;
 }
 
 
@@ -598,7 +634,9 @@ main (int argc, char **argv)
     int cur_word = 0;
     while (cur_word < max_list_size && fgets (fetched_words[cur_word], sizeof fetched_words[0], fp) != NULL )
     {
-      fetched_words[cur_word][strlen (fetched_words[cur_word]) - 1] = '\0';
+      trim_whitespace (fetched_words[cur_word]);
+      if (*fetched_words[cur_word] == '\0')
+        continue;
       cur_word++;
     }
 
