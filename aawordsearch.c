@@ -56,7 +56,9 @@ const char HOST[] = "random-word-api.herokuapp.com";
 const char PAGE[] = "word";
 const char PROTOCOL[] = "http";
 
-const char fill_char = '-';
+const wchar_t fill_char = '-';
+
+const wchar_t *de_alphabet = L"AÄBCDEFGHIJKLMNOÖPQRSTUÜVWXYZ";
 
 typedef struct dir_op
 {
@@ -224,7 +226,7 @@ get_words (wchar_t str[][BUFSIZ], const int fetch_count)
   /* "format" is the format of the HTTP request we send to the web
      server. */
 
-  const char *format = "\
+  const wchar_t *format = L"\
 GET /%s?number=%d&lang=de HTTP/1.0\r\n\
 Host: %s\r\n\
 User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
@@ -233,9 +235,9 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
   /* "msg" is the request message that we will send to the
      server. */
 
-  char msg[BUFSIZ];
+  wchar_t msg[BUFSIZ];
   int status =
-    snprintf (msg, BUFSIZ, format, PAGE, fetch_count, HOST, VERSION);
+    swprintf (msg, BUFSIZ, format, PAGE, fetch_count, HOST, VERSION);
   if (status >= BUFSIZ)
   {
     fputs ("snprintf failed.", stderr);
@@ -243,7 +245,7 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
   }
 
   /* Send the request. */
-  status = send (s, msg, strlen (msg), 0);
+  status = send (s, msg, wcslen (msg), 0);
 
   /* Check it succeeded. The FreeBSD manual page doesn't mention
      whether "send" sets errno, but
@@ -253,26 +255,28 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
   fail (status == -1, "send failed: %s\n", strerror (errno));
 
   /* Our receiving buffer. */
-  char srv_str[BUFSIZ + 10];
+  wchar_t srv_str[BUFSIZ + 10];
   *srv_str = '\0';
-  char buf[BUFSIZ + 10];
+  wchar_t buf[BUFSIZ + 10];
   *buf = '\0';
-  int bytes;
-  int bytes_total = 0;
+  wchar_t bytes;
+  wchar_t bytes_total = 0;
 
   /* Loop until there is no data left to be read
      (see the recv man page for return codes) */
   while ((bytes = recv (s, srv_str, BUFSIZ, 0)) > 0)
   {
-    int max_len = BUFSIZ - bytes_total;
+    wchar_t max_len = BUFSIZ - bytes_total;
     // concatenate the string each iteration of the loop
-    status = snprintf (buf + bytes_total, max_len, "%s", srv_str);
+    status = swprintf (buf + bytes_total, max_len, L"%ls", srv_str);
     if (status >= max_len)
     {
       fputs ("snprintf failed.", stderr);
       return -1;
     }
     bytes_total += bytes;
+    printf ("DEBUG: %ls", buf);
+
   }
 
   if (close (s) != 0)
@@ -286,10 +290,10 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
   if (bytes_total == 0)
     return -1;
 
-  const char open_bracket[] = "[\"";
-  const char closed_bracket[] = "\"]";
+  const wchar_t open_bracket[] = L"[\"";
+  const wchar_t closed_bracket[] = L"\"]";
   const char *str_not_found = "Expected '%s' not found in string\n";
-  char *buf_start = strstr (buf, open_bracket);
+  wchar_t *buf_start = wcsstr (buf, open_bracket);
 
   if (buf_start != NULL)
     buf_start++;
@@ -299,7 +303,7 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
     return -1;
   }
 
-  char *buf_end = strstr (buf_start, closed_bracket);
+  wchar_t *buf_end = wcsstr (buf_start, closed_bracket);
   if (buf_end != NULL)
     *buf_end = '\0';            // replaces the ']' so the string should end with '"'
   else
@@ -308,15 +312,16 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
     return -1;
   }
 
-  const char delimiter[] = "\",\"";
-  char *token = strtok (buf_start, delimiter);
+  const wchar_t delimiter[] = L"\",\"";
+  wchar_t *state;
+  wchar_t *token = wcstok (buf_start, delimiter, &state);
   int n_word = 0;
 
   while (token != NULL)
   {
     // printf("[%s]\n", token);
-    strcpy (str[n_word], token);
-    token = strtok (NULL, delimiter);
+    wcscpy (str[n_word], token);
+    token = wcstok (NULL, delimiter, &state);
     n_word++;
   }
 
@@ -325,7 +330,7 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
 
 
 int
-check (const int row, const int col, wchar_t puzzle[][GRID_SIZE], const char c)
+check (const int row, const int col, wchar_t puzzle[][GRID_SIZE], const wchar_t c)
 {
   if (c == puzzle[row][col] || puzzle[row][col] == fill_char)
     return 0;
@@ -339,7 +344,7 @@ placer (dir_op * dir_op, const wchar_t *str, wchar_t puzzle[][GRID_SIZE])
 {
   int row = dir_op->begin_row;
   int col = dir_op->begin_col;
-  char *ptr = (char *) str;
+  wchar_t *ptr = (wchar_t *) str;
   while (*ptr != '\0')
   {
     const int u = toupper (*ptr);
@@ -352,7 +357,7 @@ placer (dir_op * dir_op, const wchar_t *str, wchar_t puzzle[][GRID_SIZE])
 
   row = dir_op->begin_row;
   col = dir_op->begin_col;
-  ptr = (char *) str;
+  ptr = (wchar_t *) str;
   while (*ptr != '\0')
   {
     const int u = toupper (*ptr);
@@ -491,7 +496,7 @@ write_log (wchar_t words[][BUFSIZ], wchar_t puzzle[][GRID_SIZE],
       int l = 0;
       while (l < n_string)
       {
-        fprintf (fp, "%s\n", words[l]);
+        fprintf (fp, "%ls\n", words[l]);
         l++;
       }
     }
@@ -515,7 +520,7 @@ trim_whitespace (wchar_t *str)
   if (str == NULL)
     return;
 
-  char *pos_0 = str;
+  wchar_t *pos_0 = str;
   /* Advance pointer until NULL terminator is found */
   while (*str != '\0')
     str++;
@@ -613,7 +618,7 @@ main (int argc, char **argv)
     }
 
     int cur_word = 0;
-    while (cur_word < max_list_size && fgets (fetched_words[cur_word], sizeof fetched_words[0], fp) != NULL )
+    while (cur_word < max_list_size && fgetws (fetched_words[cur_word], sizeof fetched_words[0], fp) != NULL )
     {
       trim_whitespace (fetched_words[cur_word]);
       if (*fetched_words[cur_word] == '\0')
