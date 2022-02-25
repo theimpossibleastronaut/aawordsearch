@@ -33,6 +33,35 @@ To run the program:
 
 To enable logging, use `--log`.
 
+## Using words from a file
+
+Instead of fetching words from a server, you can use
+`--input-file=FILE` (where 'FILE' is a plain text file) to tell
+aawordsearch where to get the words from. Ex:
+
+```
+sidearm
+reinforcing
+gruff
+hypocalcemias
+virulent
+byword
+collaborated
+captivating
+shylocking
+rocks
+micronizes
+nonnucleated
+gainst
+dependants
+presbyopics
+androgyne
+sycophantly
+hamsters
+buttons
+toxaemic
+```
+
 ## Test
 
 If using meson, you can optionally run the tests (usually they are only

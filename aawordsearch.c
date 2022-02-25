@@ -1,7 +1,7 @@
 /*
  * wordsearch.c
  *
- * Copyright 2021 Andy Alt <andy400-dev@yahoo.com>
+ * Copyright 2021-2022 Andy Alt <andy400-dev@yahoo.com>
  * https://github.com/theimpossibleastronaut/wordsearch
  *
  * This program is free software; you can redistribute it and/or modify
@@ -35,6 +35,7 @@
 #include <stdarg.h>
 #include <getopt.h>
 #include <stdbool.h>
+#include <limits.h>
 
 #ifndef VERSION
 #define VERSION "_unversioned"
@@ -101,36 +102,6 @@ enum
 {
   DIAGONAL_UP_LEFT_DEC = -1,
 };
-
-const char *offline_test_words[] = {
-  "received",
-  "software",
-  "creaminess",
-  "version",
-  "shielding",
-  "foundation",
-  "General",
-  "overweening",
-  "Public",
-  "paradoxical",
-  "telemetrically",
-  "distributed",
-  "California",
-  "sarsaparillas",
-  "Honeymoon",
-  "simpson",
-  "incredible",
-  "MERCHANTABILITYMERCHANTABILITY",
-  "warranty",
-  "temperate",
-  "london",
-  "tremendous",
-  "desperate",
-  "starship",
-  "enterprise",
-};
-
-const int n_offline_words = sizeof(offline_test_words)/sizeof(offline_test_words[0]);
 
 
 static int
@@ -467,6 +438,14 @@ create_dir_op ()
 }
 
 
+/* For long options that have no equivalent short option, use a
+   non-character as a pseudo short option, starting with CHAR_MAX + 1.  */
+enum
+{
+  INPUT_FILE = CHAR_MAX + 1,
+};
+
+
 void
 print_usage ()
 {
@@ -474,7 +453,7 @@ print_usage ()
   -h, --help                  show help for command line options\n\
   -V, --version               show the program version number\n\
   -l, --log                   log the output to a file (in addition to stdout)\n\
-  -o[FILE], --offline[=FILE]  Use offline (primarily for testing purposes)");
+      --input-file=FILE       Reads words from plain text file");
 }
 
 static inline int
@@ -521,6 +500,7 @@ write_log (char words[][BUFSIZ], char puzzle[][GRID_SIZE],
 }
 
 
+#ifndef TEST
 /*!
  * Removes trailing white space from a string (including newlines, formfeeds,
  * tabs, etc
@@ -557,7 +537,6 @@ trim_whitespace (char *str)
 }
 
 
-#ifndef TEST
 int
 main (int argc, char **argv)
 {
@@ -570,22 +549,21 @@ main (int argc, char **argv)
   char puzzle[GRID_SIZE][GRID_SIZE];
 
   bool want_log = false;
-  bool offline = false;
   char *word_file_path = NULL;
 
   const struct option long_options[] = {
     {"help", no_argument, NULL, 'h'},
     {"log", no_argument, NULL, 'l'},
     {"version", no_argument, NULL, 'V'},
-    {"offline", optional_argument, NULL, 'o'},
+    {"input-file", required_argument, NULL, INPUT_FILE},
     {0, 0, 0, 0}
   };
 
-  const char *short_options = "hlVo::";
+  const char *short_options = "hlV";
   int c;
   while ((c = getopt_long (argc, argv, short_options, long_options, NULL)) != -1)
   {
-    switch ((char) c)
+    switch (c)
     {
     case 'h':
       print_usage ();
@@ -594,8 +572,7 @@ main (int argc, char **argv)
       want_log = true;
       puts ("The log will be activated! Hooray!");
       break;
-    case 'o':
-      offline = true;
+    case INPUT_FILE:
       word_file_path = optarg;
       break;
     case 'V':
@@ -621,7 +598,7 @@ main (int argc, char **argv)
 
   char fetched_words[GRID_SIZE * 2][BUFSIZ];
   int max_list_size = sizeof fetched_words / sizeof fetched_words[0];
-  
+
   if (word_file_path != NULL)
   {
     FILE* fp = fopen(word_file_path, "r");
@@ -630,7 +607,7 @@ main (int argc, char **argv)
       perror (word_file_path);
       return -1;
     }
-    
+
     int cur_word = 0;
     while (cur_word < max_list_size && fgets (fetched_words[cur_word], sizeof fetched_words[0], fp) != NULL )
     {
@@ -645,14 +622,14 @@ main (int argc, char **argv)
       fprintf(stderr, "Your word list must contain at least %d words.\n", max_words_target);
       return -1;
     }
-    
+
     if (fclose(fp) != 0)
     {
       fputs ("Error closing file:", stderr);
       perror (word_file_path);
-      // errno is a global that's included with errno.h. Many common std 
+      // errno is a global that's included with errno.h. Many common std
       // functions set it after they're called.
-      return errno; 
+      return errno;
     }
   }
 
@@ -663,7 +640,7 @@ main (int argc, char **argv)
   srand (seed);
   int n_tot_err = 0;
 
-  if (!offline)
+  if (word_file_path == NULL)
   {
     printf ("Attempting to fetch %d words from %s...\n", max_words_target,
             HOST);
@@ -690,17 +667,6 @@ main (int argc, char **argv)
   {
     *words[i] = '\0';
   }
-
-  if (offline && word_file_path == NULL)
-  {
-    int i;
-    for (i = 0; i < fetch_count; i++)
-      strcpy (fetched_words[i], offline_test_words[i]);
-  }
-  //else
-  //{
-  //  if (word_file_path != NULL)
-  //}
 
   dir_op *dir_op = create_dir_op ();
   int n_string = 0, f_string = 0;
