@@ -36,6 +36,8 @@
 #include <getopt.h>
 #include <stdbool.h>
 #include <limits.h>
+#include <locale.h>
+#include <wchar.h>
 
 #ifndef VERSION
 #define VERSION "_unversioned"
@@ -153,7 +155,7 @@ get_col_op (const int op)
 
 
 void
-init_puzzle (char puzzle[][GRID_SIZE])
+init_puzzle (wchar_t puzzle[][GRID_SIZE])
 {
   int i, j;
 
@@ -190,7 +192,7 @@ fail (int test, const char *format, ...)
 
 
 static inline int
-get_words (char str[][BUFSIZ], const int fetch_count)
+get_words (wchar_t str[][BUFSIZ], const int fetch_count)
 {
   struct addrinfo hints, *res, *res0;
   int error;
@@ -223,7 +225,7 @@ get_words (char str[][BUFSIZ], const int fetch_count)
      server. */
 
   const char *format = "\
-GET /%s?number=%d HTTP/1.0\r\n\
+GET /%s?number=%d&lang=de HTTP/1.0\r\n\
 Host: %s\r\n\
 User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
 \r\n";
@@ -323,7 +325,7 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
 
 
 int
-check (const int row, const int col, char puzzle[][GRID_SIZE], const char c)
+check (const int row, const int col, wchar_t puzzle[][GRID_SIZE], const char c)
 {
   if (c == puzzle[row][col] || puzzle[row][col] == fill_char)
     return 0;
@@ -333,7 +335,7 @@ check (const int row, const int col, char puzzle[][GRID_SIZE], const char c)
 
 
 static inline int
-placer (dir_op * dir_op, const char *str, char puzzle[][GRID_SIZE])
+placer (dir_op * dir_op, const wchar_t *str, wchar_t puzzle[][GRID_SIZE])
 {
   int row = dir_op->begin_row;
   int col = dir_op->begin_col;
@@ -364,7 +366,7 @@ placer (dir_op * dir_op, const char *str, char puzzle[][GRID_SIZE])
 
 
 void
-print_answer_key (FILE * restrict stream, char puzzle[][GRID_SIZE])
+print_answer_key (FILE * restrict stream, wchar_t puzzle[][GRID_SIZE])
 {
   int i, j;
   fputs (" ==] Answer key [==\n", stream);
@@ -382,7 +384,7 @@ print_answer_key (FILE * restrict stream, char puzzle[][GRID_SIZE])
 
 
 void
-print_puzzle (FILE * restrict stream, char puzzle[][GRID_SIZE])
+print_puzzle (FILE * restrict stream, wchar_t puzzle[][GRID_SIZE])
 {
   int i, j;
   for (i = 0; i < GRID_SIZE; i++)
@@ -403,13 +405,13 @@ print_puzzle (FILE * restrict stream, char puzzle[][GRID_SIZE])
 
 
 static void
-print_words (FILE * restrict stream, char words[][BUFSIZ], const int n_string)
+print_words (FILE * restrict stream, wchar_t words[][BUFSIZ], const int n_string)
 {
   int i = 0;
   while (i < n_string)
   {
     if (*words[i] != '\0')
-      fprintf (stream, "%*s", MAX_LEN + 1, words[i]);
+      fprintf (stream, "%*ls", MAX_LEN + 1, words[i]);
     i++;
 
     // start a new row after every 3 words
@@ -457,7 +459,7 @@ print_usage ()
 }
 
 static inline int
-write_log (char words[][BUFSIZ], char puzzle[][GRID_SIZE],
+write_log (wchar_t words[][BUFSIZ], wchar_t puzzle[][GRID_SIZE],
            const long unsigned seed, const int n_string)
 {
   {
@@ -508,7 +510,7 @@ write_log (char words[][BUFSIZ], char puzzle[][GRID_SIZE],
  * @return void
  */
 static void
-trim_whitespace (char *str)
+trim_whitespace (wchar_t *str)
 {
   if (str == NULL)
     return;
@@ -540,13 +542,15 @@ trim_whitespace (char *str)
 int
 main (int argc, char **argv)
 {
+  setlocale(LC_ALL, "");
+
   const int max_words_target = GRID_SIZE;
   const int fetch_count = max_words_target * 1.2;
   // this probably means the word server is having issues. If this number is exceeded,
   // we'll quit completely
   const int max_tot_err_allowed = 10;
   const int max_tries_per_direction = GRID_SIZE * 5;
-  char puzzle[GRID_SIZE][GRID_SIZE];
+  wchar_t puzzle[GRID_SIZE][GRID_SIZE];
 
   bool want_log = false;
   char *word_file_path = NULL;
@@ -596,7 +600,7 @@ main (int argc, char **argv)
     putchar ('\n');
   }
 
-  char fetched_words[GRID_SIZE * 2][BUFSIZ];
+  wchar_t fetched_words[GRID_SIZE * 2][BUFSIZ];
   int max_list_size = sizeof fetched_words / sizeof fetched_words[0];
 
   if (word_file_path != NULL)
@@ -662,7 +666,7 @@ main (int argc, char **argv)
   }
 
   int i;
-  char words[GRID_SIZE * 2][BUFSIZ];
+  wchar_t words[GRID_SIZE * 2][BUFSIZ];
   for (i = 0; i < max_words_target; i++)
   {
     *words[i] = '\0';
@@ -673,16 +677,16 @@ main (int argc, char **argv)
   int cur_dir = 0;
   while ((n_string < max_words_target) && n_tot_err < max_tot_err_allowed)
   {
-    size_t len = strlen (fetched_words[f_string]);
+    size_t len = wcslen (fetched_words[f_string]);
     if (len > (size_t)MAX_LEN)          // skip the word if it exceeds this value
     {
-      printf ("word '%s' exceeded max length\n", fetched_words[f_string]);
+      printf ("word '%ls' exceeded max length\n", fetched_words[f_string]);
       f_string++;
       continue;
     }
 
-    strcpy (words[n_string], fetched_words[f_string]);
-    printf ("%d.) %s\n", n_string + 1, words[n_string]);
+    wcscpy (words[n_string], fetched_words[f_string]);
+    printf ("%d.) %ls\n", n_string + 1, words[n_string]);
 
     // Try placing the word in all 8 directions, each direction at most
     // max_tries_per_direction. If successful, break from both loops and get
@@ -712,7 +716,7 @@ main (int argc, char **argv)
     if (r)
     {
       n_tot_err++;
-      printf ("Unable to find a place for '%s'\n", words[n_string]);
+      printf ("Unable to find a place for '%ls'\n", words[n_string]);
       f_string++;
     }
 
