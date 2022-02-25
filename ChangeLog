@@ -1,8 +1,8 @@
 aawordsearch ChangeLog
 
-2021-12-11
+2022-02-25
 
-  * Add '-o, --offline' option (primarily for testing)
+  * Add option '--input-file=FILE' (read words from plain text file)
 
 2021-12-10
 
