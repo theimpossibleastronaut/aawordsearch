@@ -226,7 +226,7 @@ get_words (wchar_t str[][BUFSIZ], const int fetch_count)
   /* "format" is the format of the HTTP request we send to the web
      server. */
 
-  const wchar_t *format = L"\
+  const char *format = "\
 GET /%s?number=%d&lang=de HTTP/1.0\r\n\
 Host: %s\r\n\
 User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
@@ -235,9 +235,9 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
   /* "msg" is the request message that we will send to the
      server. */
 
-  wchar_t msg[BUFSIZ];
+  char msg[BUFSIZ];
   int status =
-    swprintf (msg, BUFSIZ, format, PAGE, fetch_count, HOST, VERSION);
+    snprintf (msg, BUFSIZ, format, PAGE, fetch_count, HOST, VERSION);
   if (status >= BUFSIZ)
   {
     fputs ("snprintf failed.", stderr);
@@ -245,7 +245,7 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
   }
 
   /* Send the request. */
-  status = send (s, msg, wcslen (msg), 0);
+  status = send (s, msg, strlen (msg), 0);
 
   /* Check it succeeded. The FreeBSD manual page doesn't mention
      whether "send" sets errno, but
