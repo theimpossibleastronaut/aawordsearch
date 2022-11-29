@@ -47,6 +47,13 @@
 #define PROGRAM_NAME "aawordsearch"
 #endif
 
+struct lang_vars
+{
+  const char *lang;
+  const wchar_t *alphabet;
+  const size_t length;
+};
+
 // n * n grid
 const int GRID_SIZE = 20;       // n
 #define MAX_LEN (GRID_SIZE - 2)
@@ -58,9 +65,8 @@ const char PROTOCOL[] = "http";
 
 const wchar_t fill_char = '-';
 
-const wchar_t *de_alphabet = L"AÄBCDEFGHIJKLMNOÖPQRSTUÜVWXYZß";
-const wchar_t *en_alphabet = L"ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-
+const wchar_t de_alphabet[] = L"AÄBCDEFGHIJKLMNOÖPQRSTUÜVWXYZß";
+const wchar_t en_alphabet[] = L"ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 char *lang = NULL;
 
 typedef struct dir_op
@@ -389,7 +395,7 @@ print_answer_key (FILE * restrict stream, wchar_t puzzle[][GRID_SIZE])
 
 
 void
-print_puzzle (FILE * restrict stream, wchar_t puzzle[][GRID_SIZE])
+print_puzzle (FILE * restrict stream, wchar_t puzzle[][GRID_SIZE], struct lang_vars st_langvars[])
 {
   wchar_t *alphabet = NULL;
   if (strcmp (lang, "en") == 0)
@@ -397,6 +403,7 @@ print_puzzle (FILE * restrict stream, wchar_t puzzle[][GRID_SIZE])
   else if (strcmp (lang, "de") == 0)
     alphabet = (wchar_t*)de_alphabet;
 
+  printf("length=%d\n", st_langvars[1].length);
   int i, j;
   for (i = 0; i < GRID_SIZE; i++)
   {
@@ -404,7 +411,7 @@ print_puzzle (FILE * restrict stream, wchar_t puzzle[][GRID_SIZE])
     {
       if (puzzle[i][j] == fill_char)
         fprintf (stream, "%lc ",
-                 alphabet[rand () % sizeof(alphabet) / sizeof(alphabet[0])]);
+                 st_langvars[1].alphabet[rand () % st_langvars[1].length / 2]);
       else
         fprintf (stream, "%lc ", puzzle[i][j]);
     }
@@ -474,7 +481,7 @@ print_usage ()
 
 static inline int
 write_log (wchar_t words[][BUFSIZ], wchar_t puzzle[][GRID_SIZE],
-           const long unsigned seed, const int n_string)
+           const long unsigned seed, const int n_string, struct lang_vars st_langvars[])
 {
   {
     char log_file[BUFSIZ];
@@ -484,7 +491,7 @@ write_log (wchar_t words[][BUFSIZ], wchar_t puzzle[][GRID_SIZE],
     {
       fprintf (fp, "seed = %lu\n\n", seed);
       print_answer_key (fp, puzzle);
-      print_puzzle (fp, puzzle);
+      print_puzzle (fp, puzzle, st_langvars);
       print_words (fp, words, n_string);
     }
     else
@@ -657,6 +664,12 @@ main (int argc, char **argv)
 
   init_puzzle (puzzle);
 
+  struct lang_vars st_langvars[] = {
+    {"en", en_alphabet, wcslen(en_alphabet)},
+    {"de", de_alphabet, wcslen(de_alphabet)},
+    {NULL, NULL, 0}
+  };
+
   /* seed the random number generator */
   const time_t seed = time (NULL);
   srand (seed);
@@ -748,12 +761,12 @@ main (int argc, char **argv)
   }
 
   print_answer_key (stdout, puzzle);
-  print_puzzle (stdout, puzzle);
+  print_puzzle (stdout, puzzle, st_langvars);
   print_words (stdout, words, n_string);
 
   // write the seed, answer key, and puzzle to a file
   if (want_log)
-    if (write_log (words, puzzle, seed, n_string) != 0)
+    if (write_log (words, puzzle, seed, n_string, st_langvars) != 0)
       return -1;
 
   return 0;
