@@ -194,7 +194,7 @@ fail (int test, const char *format, ...)
 
 
 static inline int
-get_words (char str[][BUFSIZ], const int fetch_count)
+get_words (wchar_t str[][BUFSIZ], const int fetch_count)
 {
   struct addrinfo hints, *res, *res0;
   int error;
@@ -227,7 +227,7 @@ get_words (char str[][BUFSIZ], const int fetch_count)
      server. */
 
   const char *format = "\
-GET /%s?number=%d HTTP/1.0\r\n\
+GET /%s?number=%d&lang=de HTTP/1.0\r\n\
 Host: %s\r\n\
 User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
 \r\n";
@@ -257,7 +257,7 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
   /* Our receiving buffer. */
   char srv_str[BUFSIZ + 10];
   *srv_str = '\0';
-  char buf[BUFSIZ + 10];
+  char  buf[BUFSIZ + 10];
   *buf = '\0';
   int bytes;
   int bytes_total = 0;
@@ -266,6 +266,7 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
      (see the recv man page for return codes) */
   while ((bytes = recv (s, srv_str, BUFSIZ, 0)) > 0)
   {
+    printf ("srv_str = %s\n", srv_str);
     int max_len = BUFSIZ - bytes_total;
     // concatenate the string each iteration of the loop
     status = snprintf (buf + bytes_total, max_len, "%s", srv_str);
@@ -288,10 +289,15 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
   if (bytes_total == 0)
     return -1;
 
-  const char open_bracket[] = "[\"";
-  const char closed_bracket[] = "\"]";
+  printf ("buf = %s\n", buf);
+
+  const size_t cSize = strlen(buf)+1;
+  wchar_t wbuf[cSize];
+  mbstowcs (wbuf, buf, cSize);
+  const wchar_t open_bracket[] = L"[\"";
+  const wchar_t closed_bracket[] = L"\"]";
   const char *str_not_found = "Expected '%s' not found in string\n";
-  char *buf_start = strstr (buf, open_bracket);
+  wchar_t *buf_start = wcsstr (wbuf, open_bracket);
 
   if (buf_start != NULL)
     buf_start++;
@@ -301,7 +307,7 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
     return -1;
   }
 
-  char *buf_end = strstr (buf_start, closed_bracket);
+  wchar_t *buf_end = wcsstr (buf_start, closed_bracket);
   if (buf_end != NULL)
     *buf_end = '\0';            // replaces the ']' so the string should end with '"'
   else
@@ -310,15 +316,16 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
     return -1;
   }
 
-  const char delimiter[] = "\",\"";
-  char *token = strtok (buf_start, delimiter);
+  wchar_t *wptr;
+  const wchar_t delimiter[] = L"\",\"";
+  wchar_t *token = wcstok (buf_start, delimiter, &wptr);
   int n_word = 0;
 
   while (token != NULL)
   {
     // printf("[%s]\n", token);
-    strcpy (str[n_word], token);
-    token = strtok (NULL, delimiter);
+    wcscpy (str[n_word], token);
+    token = wcstok (NULL, delimiter, &wptr);
     n_word++;
   }
 
@@ -404,7 +411,7 @@ print_words (FILE * restrict stream, wchar_t words[][BUFSIZ], const int n_string
   while (i < n_string)
   {
     if (*words[i] != '\0')
-      fprintf (stream, "%*s", MAX_LEN + 1, words[i]);
+      fprintf (stream, "%*ls", MAX_LEN + 1, words[i]);
     i++;
 
     // start a new row after every 3 words
@@ -476,7 +483,7 @@ write_log (wchar_t words[][BUFSIZ], wchar_t puzzle[][GRID_SIZE],
     if (fclose (fp) != 0)
       fprintf (stderr, "Error closing %s\n", log_file);
 
-    wchar_t word_log_file[BUFSIZ];
+    char word_log_file[BUFSIZ];
     snprintf (word_log_file, BUFSIZ, "aawordsearch_words_%lu.log", seed);
     fp = fopen (word_log_file, "w");
     if (fp != NULL)
@@ -484,7 +491,7 @@ write_log (wchar_t words[][BUFSIZ], wchar_t puzzle[][GRID_SIZE],
       int l = 0;
       while (l < n_string)
       {
-        fprintf (fp, "%s\n", words[l]);
+        fprintf (fp, "%ls\n", words[l]);
         l++;
       }
     }
@@ -503,7 +510,7 @@ write_log (wchar_t words[][BUFSIZ], wchar_t puzzle[][GRID_SIZE],
  * @return void
  */
 static void
-trim_whitespace (char *str)
+trim_whitespace (wchar_t *str)
 {
   if (str == NULL)
     return;
@@ -592,7 +599,7 @@ main (int argc, char **argv)
     putchar ('\n');
   }
 
-  char fetched_words[GRID_SIZE * 2][BUFSIZ];
+  wchar_t fetched_words[GRID_SIZE * 2][BUFSIZ];
   int max_list_size = sizeof fetched_words / sizeof fetched_words[0];
 
   if (word_file_path != NULL)
@@ -605,7 +612,7 @@ main (int argc, char **argv)
     }
 
     int cur_word = 0;
-    while (cur_word < max_list_size && fgets (fetched_words[cur_word], sizeof fetched_words[0], fp) != NULL )
+    while (cur_word < max_list_size && fgetws (fetched_words[cur_word], sizeof fetched_words[0], fp) != NULL )
     {
       trim_whitespace (fetched_words[cur_word]);
       if (*fetched_words[cur_word] == '\0')
@@ -658,7 +665,7 @@ main (int argc, char **argv)
   }
 
   int i;
-  char words[GRID_SIZE * 2][BUFSIZ];
+  wchar_t words[GRID_SIZE * 2][BUFSIZ];
   for (i = 0; i < max_words_target; i++)
   {
     *words[i] = '\0';
@@ -669,16 +676,16 @@ main (int argc, char **argv)
   int cur_dir = 0;
   while ((n_string < max_words_target) && n_tot_err < max_tot_err_allowed)
   {
-    size_t len = strlen (fetched_words[f_string]);
+    size_t len = wcslen (fetched_words[f_string]);
     if (len > (size_t)MAX_LEN)          // skip the word if it exceeds this value
     {
-      printf ("word '%s' exceeded max length\n", fetched_words[f_string]);
+      printf ("word '%ls' exceeded max length\n", fetched_words[f_string]);
       f_string++;
       continue;
     }
 
-    strcpy (words[n_string], fetched_words[f_string]);
-    printf ("%d.) %s\n", n_string + 1, words[n_string]);
+    wcscpy (words[n_string], fetched_words[f_string]);
+    printf ("%d.) %ls\n", n_string + 1, words[n_string]);
 
     // Try placing the word in all 8 directions, each direction at most
     // max_tries_per_direction. If successful, break from both loops and get
@@ -708,7 +715,7 @@ main (int argc, char **argv)
     if (r)
     {
       n_tot_err++;
-      printf ("Unable to find a place for '%s'\n", words[n_string]);
+      printf ("Unable to find a place for '%ls'\n", words[n_string]);
       f_string++;
     }
 
