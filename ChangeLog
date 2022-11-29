@@ -1,5 +1,9 @@
 aawordsearch ChangeLog
 
+2022-11-29
+
+  * Implement German language puzzle (--lang=de)
+
 2022-02-25
 
   * Add option '--input-file=FILE' (read words from plain text file)
