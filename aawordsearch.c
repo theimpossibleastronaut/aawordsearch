@@ -38,6 +38,7 @@
 #include <limits.h>
 #include <locale.h>
 #include <wchar.h>
+#include <wctype.h>
 
 #ifndef VERSION
 #define VERSION "_unversioned"
@@ -352,8 +353,7 @@ placer (dir_op * dir_op, const wchar_t *str, wchar_t puzzle[][GRID_SIZE])
   wchar_t *ptr = (wchar_t *) str;
   while (*ptr)
   {
-    // toupper() probably doesn't convert wchars; need to find replacement
-    const wchar_t u = toupper (*ptr);
+    const wchar_t u = towupper (*ptr);
     if (!(u == puzzle[row][col] || puzzle[row][col] == fill_char))
       return -1;
     ptr++;
@@ -366,7 +366,7 @@ placer (dir_op * dir_op, const wchar_t *str, wchar_t puzzle[][GRID_SIZE])
   ptr = (wchar_t *) str;
   while (*ptr != '\0')
   {
-    const wchar_t u = toupper (*ptr);
+    const wchar_t u = towupper (*ptr);
     puzzle[row][col] = u;
     ptr++;
     col += dir_op->col;
