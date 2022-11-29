@@ -276,7 +276,6 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
      (see the recv man page for return codes) */
   while ((bytes = recv (s, srv_str, BUFSIZ, 0)) > 0)
   {
-    printf ("srv_str = %s\n", srv_str);
     int max_len = BUFSIZ - bytes_total;
     // concatenate the string each iteration of the loop
     status = snprintf (buf + bytes_total, max_len, "%s", srv_str);
@@ -298,8 +297,6 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
 
   if (bytes_total == 0)
     return -1;
-
-  printf ("buf = %s\n", buf);
 
   // convert buf from char* to wchar_t*
   size_t buf_size = strlen(buf) + 1;
