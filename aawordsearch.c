@@ -59,6 +59,9 @@ const char PROTOCOL[] = "http";
 const wchar_t fill_char = '-';
 
 const wchar_t *de_alphabet = L"AÄBCDEFGHIJKLMNOÖPQRSTUÜVWXYZß";
+const wchar_t *en_alphabet = L"ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+char *lang = NULL;
 
 typedef struct dir_op
 {
@@ -194,7 +197,7 @@ fail (int test, const char *format, ...)
 
 
 static inline int
-get_words (wchar_t str[][BUFSIZ], const int fetch_count)
+get_words (wchar_t str[][BUFSIZ], const int fetch_count, const char* lang)
 {
   struct addrinfo hints, *res, *res0;
   int error;
@@ -227,7 +230,7 @@ get_words (wchar_t str[][BUFSIZ], const int fetch_count)
      server. */
 
   const char *format = "\
-GET /%s?number=%d&lang=de HTTP/1.0\r\n\
+GET /%s?number=%d&lang=%s HTTP/1.0\r\n\
 Host: %s\r\n\
 User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
 \r\n";
@@ -237,7 +240,7 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
 
   char msg[BUFSIZ];
   int status =
-    snprintf (msg, BUFSIZ, format, PAGE, fetch_count, HOST, VERSION);
+    snprintf (msg, BUFSIZ, format, PAGE, fetch_count, lang, HOST, VERSION);
   if (status >= BUFSIZ)
   {
     fputs ("snprintf failed.", stderr);
@@ -291,9 +294,11 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
 
   printf ("buf = %s\n", buf);
 
-  const size_t cSize = strlen(buf)+1;
-  wchar_t wbuf[cSize];
-  mbstowcs (wbuf, buf, cSize);
+  // convert buf from char* to wchar_t*
+  size_t buf_size = strlen(buf) + 1;
+  wchar_t wbuf[buf_size];
+  mbstowcs (wbuf, buf, buf_size);
+
   const wchar_t open_bracket[] = L"[\"";
   const wchar_t closed_bracket[] = L"\"]";
   const char *str_not_found = "Expected '%s' not found in string\n";
@@ -386,6 +391,12 @@ print_answer_key (FILE * restrict stream, wchar_t puzzle[][GRID_SIZE])
 void
 print_puzzle (FILE * restrict stream, wchar_t puzzle[][GRID_SIZE])
 {
+  wchar_t *alphabet = NULL;
+  if (strcmp (lang, "en") == 0)
+    alphabet = en_alphabet;
+  else if (strcmp (lang, "de") == 0)
+    alphabet = de_alphabet;
+
   int i, j;
   for (i = 0; i < GRID_SIZE; i++)
   {
@@ -393,7 +404,7 @@ print_puzzle (FILE * restrict stream, wchar_t puzzle[][GRID_SIZE])
     {
       if (puzzle[i][j] == fill_char)
         fprintf (stream, "%lc ",
-                 de_alphabet[rand () % sizeof(de_alphabet) / sizeof(de_alphabet[0])]);
+                 alphabet[rand () % sizeof(alphabet) / sizeof(alphabet[0])]);
       else
         fprintf (stream, "%lc ", puzzle[i][j]);
     }
@@ -445,6 +456,7 @@ create_dir_op ()
 enum
 {
   INPUT_FILE = CHAR_MAX + 1,
+  LANG
 };
 
 
@@ -454,6 +466,8 @@ print_usage ()
   puts ("\n\
   -h, --help                  show help for command line options\n\
   -V, --version               show the program version number\n\
+      --lang=LANG             language (optional; defaults to 'en')\n\
+                              available: 'en','de'\n\
   -l, --log                   log the output to a file (in addition to stdout)\n\
       --input-file=FILE       Reads words from plain text file");
 }
@@ -553,12 +567,14 @@ main (int argc, char **argv)
 
   bool want_log = false;
   char *word_file_path = NULL;
+  char *lang_en = "en";
 
   const struct option long_options[] = {
     {"help", no_argument, NULL, 'h'},
     {"log", no_argument, NULL, 'l'},
     {"version", no_argument, NULL, 'V'},
     {"input-file", required_argument, NULL, INPUT_FILE},
+    {"lang", required_argument, NULL, LANG},
     {0, 0, 0, 0}
   };
 
@@ -577,6 +593,9 @@ main (int argc, char **argv)
       break;
     case INPUT_FILE:
       word_file_path = optarg;
+      break;
+    case LANG:
+      lang = optarg;
       break;
     case 'V':
       // printf ("%s v%s\n\n", PROGRAM_NAME, VERSION);
@@ -649,9 +668,11 @@ main (int argc, char **argv)
             HOST);
     int t = 0;
     int r;
+    if (lang == NULL)
+      lang = lang_en;
     do
     {
-      r = get_words (fetched_words, fetch_count);
+      r = get_words (fetched_words, fetch_count, lang);
       if (r != 0)
         n_tot_err++;
     }
