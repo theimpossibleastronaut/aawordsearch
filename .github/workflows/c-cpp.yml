@@ -1,11 +1,16 @@
 name: C/C++ CI
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
 
 on:
   push:
+    branches: [ trunk ]
     paths-ignore:
     - '**/*.md'
     - '.github/workflows/codeql-analysis.yml'
   pull_request:
+    branches: [ trunk ]
     paths-ignore:
     - '**/*.md'
     - '.github/workflows/codeql-analysis.yml'
@@ -14,7 +19,7 @@ jobs:
   Ubuntu:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Install Dependencies
       run: sudo apt-get install -y meson
     - run: |
@@ -26,7 +31,7 @@ jobs:
   MacOS:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: Install Dependencies
