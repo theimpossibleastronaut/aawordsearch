@@ -197,7 +197,7 @@ fail (int test, const char *format, ...)
 
 
 static inline int
-get_words (wchar_t str[][BUFSIZ], const int fetch_count, const char* lang)
+get_words (wchar_t str[][BUFSIZ], const int fetch_count)
 {
   struct addrinfo hints, *res, *res0;
   int error;
@@ -393,9 +393,9 @@ print_puzzle (FILE * restrict stream, wchar_t puzzle[][GRID_SIZE])
 {
   wchar_t *alphabet = NULL;
   if (strcmp (lang, "en") == 0)
-    alphabet = en_alphabet;
+    alphabet = (wchar_t*)en_alphabet;
   else if (strcmp (lang, "de") == 0)
-    alphabet = de_alphabet;
+    alphabet = (wchar_t*)de_alphabet;
 
   int i, j;
   for (i = 0; i < GRID_SIZE; i++)
@@ -672,7 +672,7 @@ main (int argc, char **argv)
       lang = lang_en;
     do
     {
-      r = get_words (fetched_words, fetch_count, lang);
+      r = get_words (fetched_words, fetch_count);
       if (r != 0)
         n_tot_err++;
     }
