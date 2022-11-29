@@ -50,6 +50,7 @@
 struct lang_vars
 {
   const char *lang;
+  const char *locale;
   const wchar_t *alphabet;
   const size_t length;
 };
@@ -265,7 +266,7 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
   /* Our receiving buffer. */
   char srv_str[BUFSIZ + 10];
   *srv_str = '\0';
-  char  buf[BUFSIZ + 10];
+  char buf[BUFSIZ + 10];
   *buf = '\0';
   int bytes;
   int bytes_total = 0;
@@ -384,7 +385,7 @@ print_answer_key (FILE * restrict stream, wchar_t puzzle[][GRID_SIZE])
   {
     for (j = 0; j < GRID_SIZE; j++)
     {
-      fprintf (stream, "%c ", puzzle[i][j]);
+      fprintf (stream, "%lc ", puzzle[i][j]);
     }
     fputs ("\n", stream);
   }
@@ -634,7 +635,9 @@ main (int argc, char **argv)
     while (cur_word < max_list_size && fgetws (fetched_words[cur_word], sizeof fetched_words[0], fp) != NULL )
     {
       trim_whitespace (fetched_words[cur_word]);
-      if (*fetched_words[cur_word] == '\0')
+      wchar_t *ptr = wcschr(fetched_words[cur_word], ' ');
+      wchar_t *ptr2 = wcschr(fetched_words[cur_word], '.');
+      if (*fetched_words[cur_word] == '\0' || ptr != NULL || ptr2 != NULL)
         continue;
       cur_word++;
     }
@@ -661,9 +664,9 @@ main (int argc, char **argv)
     lang = lang_en;
 
   struct lang_vars st_langvars[] = {
-    {"en", en_alphabet, wcslen(en_alphabet)},
-    {"de", de_alphabet, wcslen(de_alphabet)},
-    {NULL, NULL, 0}
+    {"en", "en_US", en_alphabet, wcslen(en_alphabet)},
+    {"de", "de_DE.UTF-8", de_alphabet, wcslen(de_alphabet)},
+    {NULL, NULL, NULL, 0}
   };
 
   struct lang_vars *st_lang_ptr = st_langvars;
@@ -679,6 +682,8 @@ main (int argc, char **argv)
     fputs("Invalid lang provided", stderr);
     return -1;
   }
+
+  setlocale(LC_ALL, st_lang_ptr->locale);
 
   /* seed the random number generator */
   const time_t seed = time (NULL);
