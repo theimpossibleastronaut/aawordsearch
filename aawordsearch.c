@@ -36,6 +36,9 @@
 #include <getopt.h>
 #include <stdbool.h>
 #include <limits.h>
+#include <locale.h>
+#include <wchar.h>
+#include <wctype.h>
 
 #ifndef VERSION
 #define VERSION "_unversioned"
@@ -44,6 +47,14 @@
 #ifndef PROGRAM_NAME
 #define PROGRAM_NAME "aawordsearch"
 #endif
+
+struct lang_vars
+{
+  const char *lang;
+  const char *locale;
+  const wchar_t *alphabet;
+  const size_t length;
+};
 
 // n * n grid
 const int GRID_SIZE = 20;       // n
@@ -54,7 +65,10 @@ const char HOST[] = "random-word-api.herokuapp.com";
 const char PAGE[] = "word";
 const char PROTOCOL[] = "http";
 
-const char fill_char = '-';
+const wchar_t fill_char = '-';
+
+const wchar_t de_alphabet[] = L"AÄBCDEFGHIJKLMNOÖPQRSTUÜVWXYZß";
+const wchar_t en_alphabet[] = L"ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 typedef struct dir_op
 {
@@ -153,7 +167,7 @@ get_col_op (const int op)
 
 
 void
-init_puzzle (char puzzle[][GRID_SIZE])
+init_puzzle (wchar_t puzzle[][GRID_SIZE])
 {
   int i, j;
 
@@ -190,7 +204,7 @@ fail (int test, const char *format, ...)
 
 
 static inline int
-get_words (char str[][BUFSIZ], const int fetch_count)
+get_words (wchar_t str[][BUFSIZ], const int fetch_count, const char *lang)
 {
   struct addrinfo hints, *res, *res0;
   int error;
@@ -223,7 +237,7 @@ get_words (char str[][BUFSIZ], const int fetch_count)
      server. */
 
   const char *format = "\
-GET /%s?number=%d HTTP/1.0\r\n\
+GET /%s?number=%d&lang=%s HTTP/1.0\r\n\
 Host: %s\r\n\
 User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
 \r\n";
@@ -233,7 +247,7 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
 
   char msg[BUFSIZ];
   int status =
-    snprintf (msg, BUFSIZ, format, PAGE, fetch_count, HOST, VERSION);
+    snprintf (msg, BUFSIZ, format, PAGE, fetch_count, lang, HOST, VERSION);
   if (status >= BUFSIZ)
   {
     fputs ("snprintf failed.", stderr);
@@ -284,10 +298,15 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
   if (bytes_total == 0)
     return -1;
 
-  const char open_bracket[] = "[\"";
-  const char closed_bracket[] = "\"]";
+  // convert buf from char* to wchar_t*
+  size_t buf_size = strlen(buf) + 1;
+  wchar_t wbuf[buf_size];
+  mbstowcs (wbuf, buf, buf_size);
+
+  const wchar_t open_bracket[] = L"[\"";
+  const wchar_t closed_bracket[] = L"\"]";
   const char *str_not_found = "Expected '%s' not found in string\n";
-  char *buf_start = strstr (buf, open_bracket);
+  wchar_t *buf_start = wcsstr (wbuf, open_bracket);
 
   if (buf_start != NULL)
     buf_start++;
@@ -297,7 +316,7 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
     return -1;
   }
 
-  char *buf_end = strstr (buf_start, closed_bracket);
+  wchar_t *buf_end = wcsstr (buf_start, closed_bracket);
   if (buf_end != NULL)
     *buf_end = '\0';            // replaces the ']' so the string should end with '"'
   else
@@ -306,15 +325,16 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
     return -1;
   }
 
-  const char delimiter[] = "\",\"";
-  char *token = strtok (buf_start, delimiter);
+  wchar_t *wptr;
+  const wchar_t delimiter[] = L"\",\"";
+  wchar_t *token = wcstok (buf_start, delimiter, &wptr);
   int n_word = 0;
 
   while (token != NULL)
   {
     // printf("[%s]\n", token);
-    strcpy (str[n_word], token);
-    token = strtok (NULL, delimiter);
+    wcscpy (str[n_word], token);
+    token = wcstok (NULL, delimiter, &wptr);
     n_word++;
   }
 
@@ -322,26 +342,16 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
 }
 
 
-int
-check (const int row, const int col, char puzzle[][GRID_SIZE], const char c)
-{
-  if (c == puzzle[row][col] || puzzle[row][col] == fill_char)
-    return 0;
-
-  return -1;
-}
-
-
 static inline int
-placer (dir_op * dir_op, const char *str, char puzzle[][GRID_SIZE])
+placer (dir_op * dir_op, const wchar_t *str, wchar_t puzzle[][GRID_SIZE])
 {
   int row = dir_op->begin_row;
   int col = dir_op->begin_col;
-  char *ptr = (char *) str;
-  while (*ptr != '\0')
+  wchar_t *ptr = (wchar_t *) str;
+  while (*ptr)
   {
-    const int u = toupper (*ptr);
-    if (check (row, col, puzzle, u) == -1)
+    const wchar_t u = towupper (*ptr);
+    if (!(u == puzzle[row][col] || puzzle[row][col] == fill_char))
       return -1;
     ptr++;
     row += dir_op->row;
@@ -350,10 +360,10 @@ placer (dir_op * dir_op, const char *str, char puzzle[][GRID_SIZE])
 
   row = dir_op->begin_row;
   col = dir_op->begin_col;
-  ptr = (char *) str;
+  ptr = (wchar_t *) str;
   while (*ptr != '\0')
   {
-    const int u = toupper (*ptr);
+    const wchar_t u = towupper (*ptr);
     puzzle[row][col] = u;
     ptr++;
     col += dir_op->col;
@@ -364,7 +374,7 @@ placer (dir_op * dir_op, const char *str, char puzzle[][GRID_SIZE])
 
 
 void
-print_answer_key (FILE * restrict stream, char puzzle[][GRID_SIZE])
+print_answer_key (FILE * restrict stream, wchar_t puzzle[][GRID_SIZE])
 {
   int i, j;
   fputs (" ==] Answer key [==\n", stream);
@@ -372,7 +382,7 @@ print_answer_key (FILE * restrict stream, char puzzle[][GRID_SIZE])
   {
     for (j = 0; j < GRID_SIZE; j++)
     {
-      fprintf (stream, "%c ", puzzle[i][j]);
+      fprintf (stream, "%lc ", puzzle[i][j]);
     }
     fputs ("\n", stream);
   }
@@ -382,7 +392,7 @@ print_answer_key (FILE * restrict stream, char puzzle[][GRID_SIZE])
 
 
 void
-print_puzzle (FILE * restrict stream, char puzzle[][GRID_SIZE])
+print_puzzle (FILE * restrict stream, wchar_t puzzle[][GRID_SIZE], struct lang_vars *st_lang_ptr)
 {
   int i, j;
   for (i = 0; i < GRID_SIZE; i++)
@@ -390,10 +400,10 @@ print_puzzle (FILE * restrict stream, char puzzle[][GRID_SIZE])
     for (j = 0; j < GRID_SIZE; j++)
     {
       if (puzzle[i][j] == fill_char)
-        fprintf (stream, "%c ",
-                 (rand () % ((int) 'Z' - (int) 'A' + 1)) + (int) 'A');
+        fprintf (stream, "%lc ",
+                 st_lang_ptr->alphabet[rand () % st_lang_ptr->length]);
       else
-        fprintf (stream, "%c ", puzzle[i][j]);
+        fprintf (stream, "%lc ", puzzle[i][j]);
     }
     fputs ("\n", stream);
   }
@@ -403,13 +413,13 @@ print_puzzle (FILE * restrict stream, char puzzle[][GRID_SIZE])
 
 
 static void
-print_words (FILE * restrict stream, char words[][BUFSIZ], const int n_string)
+print_words (FILE * restrict stream, wchar_t words[][BUFSIZ], const int n_string)
 {
   int i = 0;
   while (i < n_string)
   {
     if (*words[i] != '\0')
-      fprintf (stream, "%*s", MAX_LEN + 1, words[i]);
+      fprintf (stream, "%*ls", MAX_LEN + 1, words[i]);
     i++;
 
     // start a new row after every 3 words
@@ -443,6 +453,7 @@ create_dir_op ()
 enum
 {
   INPUT_FILE = CHAR_MAX + 1,
+  LANG
 };
 
 
@@ -452,13 +463,15 @@ print_usage ()
   puts ("\n\
   -h, --help                  show help for command line options\n\
   -V, --version               show the program version number\n\
+      --lang=LANG             language (optional; defaults to 'en')\n\
+                              available: 'en','de'\n\
   -l, --log                   log the output to a file (in addition to stdout)\n\
       --input-file=FILE       Reads words from plain text file");
 }
 
 static inline int
-write_log (char words[][BUFSIZ], char puzzle[][GRID_SIZE],
-           const long unsigned seed, const int n_string)
+write_log (wchar_t words[][BUFSIZ], wchar_t puzzle[][GRID_SIZE],
+           const long unsigned seed, const int n_string, struct lang_vars *st_lang_ptr)
 {
   {
     char log_file[BUFSIZ];
@@ -468,7 +481,7 @@ write_log (char words[][BUFSIZ], char puzzle[][GRID_SIZE],
     {
       fprintf (fp, "seed = %lu\n\n", seed);
       print_answer_key (fp, puzzle);
-      print_puzzle (fp, puzzle);
+      print_puzzle (fp, puzzle, st_lang_ptr);
       print_words (fp, words, n_string);
     }
     else
@@ -489,7 +502,7 @@ write_log (char words[][BUFSIZ], char puzzle[][GRID_SIZE],
       int l = 0;
       while (l < n_string)
       {
-        fprintf (fp, "%s\n", words[l]);
+        fprintf (fp, "%ls\n", words[l]);
         l++;
       }
     }
@@ -508,12 +521,12 @@ write_log (char words[][BUFSIZ], char puzzle[][GRID_SIZE],
  * @return void
  */
 static void
-trim_whitespace (char *str)
+trim_whitespace (wchar_t *str)
 {
   if (str == NULL)
     return;
 
-  char *pos_0 = str;
+  wchar_t *pos_0 = str;
   /* Advance pointer until NULL terminator is found */
   while (*str != '\0')
     str++;
@@ -540,22 +553,26 @@ trim_whitespace (char *str)
 int
 main (int argc, char **argv)
 {
+  setlocale(LC_ALL, "");
   const int max_words_target = GRID_SIZE;
   const int fetch_count = max_words_target * 1.2;
   // this probably means the word server is having issues. If this number is exceeded,
   // we'll quit completely
   const int max_tot_err_allowed = 10;
   const int max_tries_per_direction = GRID_SIZE * 5;
-  char puzzle[GRID_SIZE][GRID_SIZE];
+  wchar_t puzzle[GRID_SIZE][GRID_SIZE];
 
   bool want_log = false;
   char *word_file_path = NULL;
+  char *lang = NULL;
+  char *lang_en = "en";
 
   const struct option long_options[] = {
     {"help", no_argument, NULL, 'h'},
     {"log", no_argument, NULL, 'l'},
     {"version", no_argument, NULL, 'V'},
     {"input-file", required_argument, NULL, INPUT_FILE},
+    {"lang", required_argument, NULL, LANG},
     {0, 0, 0, 0}
   };
 
@@ -574,6 +591,9 @@ main (int argc, char **argv)
       break;
     case INPUT_FILE:
       word_file_path = optarg;
+      break;
+    case LANG:
+      lang = optarg;
       break;
     case 'V':
       // printf ("%s v%s\n\n", PROGRAM_NAME, VERSION);
@@ -596,7 +616,7 @@ main (int argc, char **argv)
     putchar ('\n');
   }
 
-  char fetched_words[GRID_SIZE * 2][BUFSIZ];
+  wchar_t fetched_words[GRID_SIZE * 2][BUFSIZ];
   int max_list_size = sizeof fetched_words / sizeof fetched_words[0];
 
   if (word_file_path != NULL)
@@ -609,10 +629,12 @@ main (int argc, char **argv)
     }
 
     int cur_word = 0;
-    while (cur_word < max_list_size && fgets (fetched_words[cur_word], sizeof fetched_words[0], fp) != NULL )
+    while (cur_word < max_list_size && fgetws (fetched_words[cur_word], sizeof fetched_words[0], fp) != NULL )
     {
       trim_whitespace (fetched_words[cur_word]);
-      if (*fetched_words[cur_word] == '\0')
+      wchar_t *ptr = wcschr(fetched_words[cur_word], ' ');
+      wchar_t *ptr2 = wcschr(fetched_words[cur_word], '.');
+      if (*fetched_words[cur_word] == '\0' || ptr != NULL || ptr2 != NULL)
         continue;
       cur_word++;
     }
@@ -635,6 +657,31 @@ main (int argc, char **argv)
 
   init_puzzle (puzzle);
 
+  if (lang == NULL)
+    lang = lang_en;
+
+  struct lang_vars st_langvars[] = {
+    {"en", "en_US", en_alphabet, wcslen(en_alphabet)},
+    {"de", "de_DE.UTF-8", de_alphabet, wcslen(de_alphabet)},
+    {NULL, NULL, NULL, 0}
+  };
+
+  struct lang_vars *st_lang_ptr = st_langvars;
+  while (st_lang_ptr->lang != NULL)
+  {
+    if (strcmp (lang, st_lang_ptr->lang) == 0)
+      break;
+    st_lang_ptr++;
+  }
+
+  if (st_lang_ptr->lang == NULL)
+  {
+    fputs("Invalid lang provided", stderr);
+    return -1;
+  }
+
+  setlocale(LC_ALL, st_lang_ptr->locale);
+
   /* seed the random number generator */
   const time_t seed = time (NULL);
   srand (seed);
@@ -648,7 +695,7 @@ main (int argc, char **argv)
     int r;
     do
     {
-      r = get_words (fetched_words, fetch_count);
+      r = get_words (fetched_words, fetch_count, st_lang_ptr->lang);
       if (r != 0)
         n_tot_err++;
     }
@@ -662,7 +709,7 @@ main (int argc, char **argv)
   }
 
   int i;
-  char words[GRID_SIZE * 2][BUFSIZ];
+  wchar_t words[GRID_SIZE * 2][BUFSIZ];
   for (i = 0; i < max_words_target; i++)
   {
     *words[i] = '\0';
@@ -673,16 +720,16 @@ main (int argc, char **argv)
   int cur_dir = 0;
   while ((n_string < max_words_target) && n_tot_err < max_tot_err_allowed)
   {
-    size_t len = strlen (fetched_words[f_string]);
+    size_t len = wcslen (fetched_words[f_string]);
     if (len > (size_t)MAX_LEN)          // skip the word if it exceeds this value
     {
-      printf ("word '%s' exceeded max length\n", fetched_words[f_string]);
+      printf ("word '%ls' exceeded max length\n", fetched_words[f_string]);
       f_string++;
       continue;
     }
 
-    strcpy (words[n_string], fetched_words[f_string]);
-    printf ("%d.) %s\n", n_string + 1, words[n_string]);
+    wcscpy (words[n_string], fetched_words[f_string]);
+    printf ("%d.) %ls\n", n_string + 1, words[n_string]);
 
     // Try placing the word in all 8 directions, each direction at most
     // max_tries_per_direction. If successful, break from both loops and get
@@ -712,7 +759,7 @@ main (int argc, char **argv)
     if (r)
     {
       n_tot_err++;
-      printf ("Unable to find a place for '%s'\n", words[n_string]);
+      printf ("Unable to find a place for '%ls'\n", words[n_string]);
       f_string++;
     }
 
@@ -724,12 +771,12 @@ main (int argc, char **argv)
   }
 
   print_answer_key (stdout, puzzle);
-  print_puzzle (stdout, puzzle);
+  print_puzzle (stdout, puzzle, st_lang_ptr);
   print_words (stdout, words, n_string);
 
   // write the seed, answer key, and puzzle to a file
   if (want_log)
-    if (write_log (words, puzzle, seed, n_string) != 0)
+    if (write_log (words, puzzle, seed, n_string, st_lang_ptr) != 0)
       return -1;
 
   return 0;
