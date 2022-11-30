@@ -600,7 +600,7 @@ main (int argc, char **argv)
     case 'V':
       // printf ("%s v%s\n\n", PROGRAM_NAME, VERSION);
       puts (PROGRAM_NAME " " VERSION "\n");
-      return 0;
+      break;
     case '?':
       printf ("Try '%s --help' for more information.\n", argv[0]);
       return -1;
