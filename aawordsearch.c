@@ -732,6 +732,15 @@ main (int argc, char **argv)
       continue;
     }
 
+    wchar_t *ptr = wcschr(fetched_words[f_string], ' ');
+    wchar_t *ptr2 = wcschr(fetched_words[f_string], '.');
+    if (ptr != NULL || ptr2 != NULL)
+    {
+      printf ("Skipping '%ls'\n", fetched_words[f_string]);
+      f_string++;
+      continue;
+    }
+
     wcscpy (words[n_string], fetched_words[f_string]);
     printf ("%d.) %ls\n", n_string + 1, words[n_string]);
 
