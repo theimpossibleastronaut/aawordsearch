@@ -1,5 +1,9 @@
 aawordsearch ChangeLog
 
+2022-11-30
+
+  * release v1.3
+
 2022-11-29
 
   * Implement German language puzzle (--lang=de)
