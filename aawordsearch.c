@@ -666,7 +666,7 @@ main (int argc, char **argv)
     {"en", "en_US", en_alphabet, wcslen(en_alphabet)},
     {"de", "de_DE.UTF-8", de_alphabet, wcslen(de_alphabet)},
     {"it", "it_IT.UTF-8", it_alphabet, wcslen(it_alphabet)},
-    {"es", "es_AI.UTF-8", es_alphabet, wcslen(es_alphabet)},
+    {"es", "es_ES.UTF-8", es_alphabet, wcslen(es_alphabet)},
     {NULL, NULL, NULL, 0}
   };
 
