@@ -31,7 +31,11 @@ To run the program:
 
     ./aawordsearch
 
-To enable logging, use `--log`.
+## Command line options
+
+    -h (help)
+    --log (enable logging)
+    --lang=de (generate a German (Deutsch) puzzle)
 
 ## Using words from a file
 
