@@ -1,6 +1,6 @@
 project('aawordsearch',
  'c',
-  version : '0.1.3',
+  version : '0.1.3.999',
   meson_version : '>= 0.49.0',
   default_options : ['warning_level=3'])
 
