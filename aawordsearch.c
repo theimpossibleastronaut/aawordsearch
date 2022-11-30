@@ -67,7 +67,7 @@ const char PROTOCOL[] = "http";
 
 const wchar_t fill_char = '-';
 
-const wchar_t it_alphabet[] = L"ABCDEFGHILMNOPQRSTUVWXYZ";
+const wchar_t it_alphabet[] = L"ABCDEFGHILMNOPQRSTUVZ";
 const wchar_t de_alphabet[] = L"AÄBCDEFGHIJKLMNOÖPQRSTUÜVWXYZß";
 const wchar_t en_alphabet[] = L"ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
