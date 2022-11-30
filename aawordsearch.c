@@ -67,6 +67,7 @@ const char PROTOCOL[] = "http";
 
 const wchar_t fill_char = '-';
 
+const wchar_t it_alphabet[] = L"ABCDEFGHILMNOPQRSTUVWXYZ";
 const wchar_t de_alphabet[] = L"AÄBCDEFGHIJKLMNOÖPQRSTUÜVWXYZß";
 const wchar_t en_alphabet[] = L"ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
@@ -464,7 +465,7 @@ print_usage ()
   -h, --help                  show help for command line options\n\
   -V, --version               show the program version number\n\
       --lang=LANG             language (optional; defaults to 'en')\n\
-                              available: 'en','de'\n\
+                              available: 'en','de', 'it'\n\
   -l, --log                   log the output to a file (in addition to stdout)\n\
       --input-file=FILE       Reads words from plain text file");
 }
@@ -663,6 +664,7 @@ main (int argc, char **argv)
   struct lang_vars st_langvars[] = {
     {"en", "en_US", en_alphabet, wcslen(en_alphabet)},
     {"de", "de_DE.UTF-8", de_alphabet, wcslen(de_alphabet)},
+    {"it", "it_IT.UTF-8", it_alphabet, wcslen(it_alphabet)},
     {NULL, NULL, NULL, 0}
   };
 

@@ -35,7 +35,9 @@ To run the program:
 
     -h (help)
     --log (enable logging)
-    --lang=de (generate a German (Deutsch) puzzle)
+
+    --lang=LANG     language (optional; defaults to 'en')
+                    available: 'en','de', 'it'
 
 ## Using words from a file
 
