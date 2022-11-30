@@ -21,12 +21,13 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Install Dependencies
-      run: sudo apt-get install -y meson
+      run: sudo apt-get install -y meson valgrind
     - run: |
         meson _build
         cd _build
         ninja -v
         ninja test
+        meson test setup=valgrind
 
   MacOS:
     runs-on: macos-latest
