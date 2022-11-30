@@ -4,6 +4,7 @@ aawordsearch ChangeLog
 
   * Implement German language puzzle (--lang=de)
   * Implement Italian language puzzle (--lang=it)
+  * Implement Spanish language puzzle (--lang=es)
 
 2022-02-25
 

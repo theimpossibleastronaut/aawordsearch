@@ -37,7 +37,7 @@ To run the program:
     --log (enable logging)
 
     --lang=LANG     language (optional; defaults to 'en')
-                    available: 'en','de', 'it'
+                    available: 'en','de','it','es'
 
 ## Using words from a file
 
