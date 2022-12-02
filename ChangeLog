@@ -3,10 +3,11 @@ aawordsearch ChangeLog
 2022-12-02
 
   * use backup API (server) if primary fails
+  * release v0.1.4
 
 2022-11-30
 
-  * release v1.3
+  * release v0.1.3
 
 2022-11-29
 
