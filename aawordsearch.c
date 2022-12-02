@@ -61,7 +61,11 @@ const int GRID_SIZE = 20;       // n
 #define MAX_LEN (GRID_SIZE - 2)
 const int N_DIRECTIONS = 8;
 
-const char HOST[] = "random-word-api.herokuapp.com";
+const char *HOST[] = {
+  "random-word-api.herokuapp.com",
+  "random-word-api-aa.herokuapp.com",
+  NULL
+};
 const char PAGE[] = "word";
 const char PROTOCOL[] = "http";
 
@@ -206,8 +210,9 @@ fail (int test, const char *format, ...)
 
 
 static inline int
-get_words (wchar_t str[][BUFSIZ], const int fetch_count, const char *lang)
+get_words (wchar_t str[][BUFSIZ], const int fetch_count, const char *lang, const char *host_ptr)
 {
+
   struct addrinfo hints, *res, *res0;
   int error;
   /* "s" is the file descriptor of the socket. */
@@ -217,7 +222,7 @@ get_words (wchar_t str[][BUFSIZ], const int fetch_count, const char *lang)
   /* Don't specify what type of internet connection. */
   hints.ai_family = PF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
-  error = getaddrinfo (HOST, PROTOCOL, &hints, &res0);
+  error = getaddrinfo (host_ptr, PROTOCOL, &hints, &res0);
   fail (error, gai_strerror (error));
   s = -1;
   for (res = res0; res; res = res->ai_next)
@@ -249,7 +254,7 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
 
   char msg[BUFSIZ];
   int status =
-    snprintf (msg, BUFSIZ, format, PAGE, fetch_count, lang, HOST, VERSION);
+    snprintf (msg, BUFSIZ, format, PAGE, fetch_count, lang, host_ptr, VERSION);
   if (status >= BUFSIZ)
   {
     fputs ("snprintf failed.", stderr);
@@ -693,23 +698,28 @@ main (int argc, char **argv)
 
   if (word_file_path == NULL)
   {
-    printf ("Attempting to fetch %d words from %s...\n", max_words_target,
-            HOST);
-    int t = 0;
-    int r;
-    do
+    const char **host_ptr = HOST;
+    int r = -1;
+    while (*host_ptr != NULL && r != 0)
     {
-      r = get_words (fetched_words, fetch_count, st_lang_ptr->lang);
-      if (r != 0)
-        n_tot_err++;
-    }
-    while (++t < 3 && r == -1);
+      printf ("Attempting to fetch %d words from %s...\n", max_words_target,
+              *host_ptr);
+      int strikes = 0;
+      do
+      {
+        r = get_words (fetched_words, fetch_count, st_lang_ptr->lang, *host_ptr);
+        if (r != 0)
+          n_tot_err++;
+      }
+      while (++strikes < 3 && r == -1);
 
-    if (r != 0)
-    {
-      fputs ("Failed to get words from server\n", stderr);
-      return -1;
+      if (r != 0)
+        fputs ("Failed to get words from server\n", stderr);
+
+      host_ptr++;
     }
+    if (r != 0)
+      return -1;
   }
 
   int i;
