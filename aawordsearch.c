@@ -67,7 +67,7 @@ const char *HOST[] = {
   NULL
 };
 const char PAGE[] = "word";
-const char PROTOCOL[] = "http";
+const char SERVICE[] = "http";
 
 const wchar_t fill_char = '-';
 
@@ -213,7 +213,7 @@ static inline int
 get_words (wchar_t str[][BUFSIZ], const int fetch_count, const char *lang, const char *host_ptr)
 {
 
-  struct addrinfo hints, *res, *res0;
+  struct addrinfo hints, *rp, *result;
   int error;
   /* "s" is the file descriptor of the socket. */
   int s;
@@ -222,14 +222,14 @@ get_words (wchar_t str[][BUFSIZ], const int fetch_count, const char *lang, const
   /* Don't specify what type of internet connection. */
   hints.ai_family = PF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
-  error = getaddrinfo (host_ptr, PROTOCOL, &hints, &res0);
+  error = getaddrinfo (host_ptr, SERVICE, &hints, &result);
   fail (error, gai_strerror (error));
   s = -1;
-  for (res = res0; res; res = res->ai_next)
+  for (rp = result; rp !=NULL; rp = rp->ai_next)
   {
-    s = socket (res->ai_family, res->ai_socktype, res->ai_protocol);
+    s = socket (rp->ai_family, rp->ai_socktype, rp->ai_protocol);
     fail (s < 0, "socket: %s\n", strerror (errno));
-    if (connect (s, res->ai_addr, res->ai_addrlen) < 0)
+    if (connect (s, rp->ai_addr, rp->ai_addrlen) < 0)
     {
       fprintf (stderr, "connect: %s\n", strerror (errno));
       close (s);
@@ -237,14 +237,13 @@ get_words (wchar_t str[][BUFSIZ], const int fetch_count, const char *lang, const
     }
     break;
   }
-
-  freeaddrinfo (res0);
+  freeaddrinfo (result);
 
   /* "format" is the format of the HTTP request we send to the web
      server. */
 
   const char *format = "\
-GET /%s?number=%d&lang=%s HTTP/1.0\r\n\
+GET /%s?number=%d&lang=%s HTTP/1.1\r\n\
 Host: %s\r\n\
 User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
 \r\n";
