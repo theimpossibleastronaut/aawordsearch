@@ -16,7 +16,20 @@ on:
     - '.github/workflows/codeql-analysis.yml'
 
 jobs:
-  Ubuntu:
+  Ubuntu-with-curl:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install Dependencies
+      run: sudo apt-get install -y meson valgrind libcurl4-openssl-dev
+    - run: |
+        meson _build
+        cd _build
+        ninja -v
+        ninja test
+        meson test --setup=valgrind
+
+  Ubuntu-no-curl:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
