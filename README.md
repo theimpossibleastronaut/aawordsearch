@@ -5,6 +5,8 @@ words randomly fetched from https://random-word-api.herokuapp.com/word,
 which uses
 [random-word-api](https://github.com/RazorSh4rk/random-word-api).
 
+This app can be run online at https://hephaestus.dreamhosters.com/
+
 [![codeql-badge]][codeql-url]
 [![c-cpp-badge]][c-cpp-url]
 
