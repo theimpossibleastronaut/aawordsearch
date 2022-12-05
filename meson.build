@@ -16,6 +16,16 @@ extra_flags = [
   '-DVERSION="@0@"'.format(meson.project_version())
 ]
 
+deps = []
+dep_curl = dependency(
+  'libcurl',
+  required:false
+  )
+if dep_curl.found()
+  extra_flags += '-DHAVE_CURL'
+  deps += dep_curl
+endif
+
 foreach cflag : extra_flags
   if cc.has_argument(cflag)
     add_project_arguments(cflag, language: 'c')
@@ -24,8 +34,11 @@ endforeach
 
 src = 'aawordsearch.c'
 
-executable(meson.project_name(),
-           src)
+executable(
+  meson.project_name(),
+  src,
+  dependencies: deps
+  )
 
 vg = find_program('valgrind', required : false)
 

@@ -39,6 +39,9 @@
 #include <locale.h>
 #include <wchar.h>
 #include <wctype.h>
+#ifdef HAVE_CURL
+#include <curl/curl.h>
+#endif
 
 #ifndef VERSION
 #define VERSION "_unversioned"
@@ -56,6 +59,33 @@ struct lang_vars
   const size_t length;
 };
 
+#ifdef HAVE_CURL
+struct memory {
+ char *response;
+ size_t size;
+};
+
+static size_t cb(void *data, size_t size, size_t nmemb, void *userp)
+{
+ size_t realsize = size * nmemb;
+ struct memory *mem = (struct memory *)userp;
+
+ char *ptr = realloc(mem->response, mem->size + realsize + 1);
+ if(ptr == NULL)
+ {
+   fputs("Error allocating memory\n", stderr);
+   exit(EXIT_FAILURE);
+ }
+
+ mem->response = ptr;
+ memcpy(&(mem->response[mem->size]), data, realsize);
+ mem->size += realsize;
+ mem->response[mem->size] = 0;
+
+ return realsize;
+}
+#endif
+
 // n * n grid
 const int GRID_SIZE = 20;       // n
 #define MAX_LEN (GRID_SIZE - 2)
@@ -66,8 +96,12 @@ const char *HOST[] = {
   "random-word-api-aa.herokuapp.com",
   NULL
 };
-const char PAGE[] = "word";
+
+#ifdef HAVE_CURL
+const char SERVICE[] = "https";
+#else
 const char SERVICE[] = "http";
+#endif
 
 const wchar_t fill_char = '-';
 
@@ -212,6 +246,78 @@ fail (int test, const char *format, ...)
 static inline int
 get_words (wchar_t str[][BUFSIZ], const int fetch_count, const char *lang, const char *host_ptr)
 {
+  printf ("Attempting to fetch %d words from %s://%s...\n", fetch_count, SERVICE, host_ptr);
+  char *buf_ptr = NULL;
+#ifdef HAVE_CURL
+
+  CURL *curl;
+  CURLcode res;
+  struct memory chunk = {0};
+
+  curl_global_init(CURL_GLOBAL_DEFAULT);
+  curl = curl_easy_init();
+
+  if(curl) {
+    const char *url_format = "https://%s/word?number=%d&lang=%s";
+    char url[BUFSIZ];
+    if ((size_t)snprintf(url, sizeof url, url_format, host_ptr, fetch_count, lang) >= sizeof url)
+    {
+      fputs("url truncated\n", stderr);
+      exit(EXIT_FAILURE);
+    }
+
+    curl_easy_setopt(curl, CURLOPT_URL, url);
+
+    // By default, the data will be sent to stdout when curl_easy_perform() is called. So we set these 3 options instead.
+    // After curl_easy_perform is called, the data will be in chunk.response.
+
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, cb);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&chunk);
+
+
+#ifdef SKIP_PEER_VERIFICATION
+    /*
+     * If you want to connect to a site who is not using a certificate that is
+     * signed by one of the certs in the CA bundle you have, you can skip the
+     * verification of the server's certificate. This makes the connection
+     * A LOT LESS SECURE.
+     *
+     * If you have a CA cert for the server stored someplace else than in the
+     * default bundle, then the CURLOPT_CAPATH option might come handy for
+     * you.
+     */
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+#endif
+
+#ifdef SKIP_HOSTNAME_VERIFICATION
+    /*
+     * If the site you are connecting to uses a different host name that what
+     * they have mentioned in their server certificate's commonName (or
+     * subjectAltName) fields, libcurl will refuse to connect. You can skip
+     * this check, but this will make the connection less secure.
+     */
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+#endif
+
+    /* Perform the request, res will get the return code */
+    res = curl_easy_perform(curl);
+    /* Check for errors */
+    fail (res != CURLE_OK, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+
+    buf_ptr = chunk.response;
+
+    /* always cleanup */
+    curl_easy_cleanup(curl);
+  }
+  else
+    fputs ("Unable to initialize curl\n", stderr);
+
+  curl_global_cleanup();
+
+  if (buf_ptr == NULL)
+    exit(EXIT_FAILURE);
+
+#else
 
   struct addrinfo hints, *rp, *result;
   int error;
@@ -243,7 +349,7 @@ get_words (wchar_t str[][BUFSIZ], const int fetch_count, const char *lang, const
      server. */
 
   const char *format = "\
-GET /%s?number=%d&lang=%s HTTP/1.1\r\n\
+GET /word?number=%d&lang=%s HTTP/1.1\r\n\
 Host: %s\r\n\
 User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
 \r\n";
@@ -253,7 +359,7 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
 
   char msg[BUFSIZ];
   int status =
-    snprintf (msg, BUFSIZ, format, PAGE, fetch_count, lang, host_ptr, VERSION);
+    snprintf (msg, BUFSIZ, format, fetch_count, lang, host_ptr, VERSION);
   if (status >= BUFSIZ)
   {
     fputs ("snprintf failed.", stderr);
@@ -304,10 +410,14 @@ User-Agent: github.com/theimpossibleastronaut/aawordsearch (v%s)\r\n\
   if (bytes_total == 0)
     return -1;
 
+  buf_ptr = buf;
+
+#endif
+
   // convert buf from char* to wchar_t*
-  size_t buf_size = strlen(buf) + 1;
+  size_t buf_size = strlen(buf_ptr) + 1;
   wchar_t wbuf[buf_size];
-  mbstowcs (wbuf, buf, buf_size);
+  mbstowcs (wbuf, buf_ptr, buf_size);
 
   const wchar_t open_bracket[] = L"[\"";
   const wchar_t closed_bracket[] = L"\"]";
@@ -701,8 +811,6 @@ main (int argc, char **argv)
     int r = -1;
     while (*host_ptr != NULL && r != 0)
     {
-      printf ("Attempting to fetch %d words from %s...\n", max_words_target,
-              *host_ptr);
       int strikes = 0;
       do
       {
