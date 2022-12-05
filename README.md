@@ -27,6 +27,8 @@ or your regular compiler:
 
     gcc/clang -Wall aawordsearch.c -o aawordsearch
 
+(If you want https support, append `-lcurl`)
+
 ## Run
 
 To run the program:

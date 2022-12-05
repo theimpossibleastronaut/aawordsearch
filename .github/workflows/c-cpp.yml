@@ -16,30 +16,27 @@ on:
     - '.github/workflows/codeql-analysis.yml'
 
 jobs:
-  Ubuntu-with-curl:
+  Ubuntu:
+    strategy:
+      matrix:
+        curl: [true, false]
     runs-on: ubuntu-latest
+    env:
+      MATRIX_CURL: ${{ matrix.curl }}
     steps:
     - uses: actions/checkout@v3
     - name: Install Dependencies
-      run: sudo apt-get install -y meson valgrind libcurl4-openssl-dev
-    - run: |
-        meson _build
+      run: |
+        sudo apt-get install -y meson valgrind
+        if [ "$MATRIX_CURL" = "true" ]; then
+          sudo apt-get install -y  libcurl4-openssl-dev
+        fi
+    - name: Configure, Build, and Test
+      run: |
+        meson setup _build
         cd _build
         ninja -v
-        ninja test
-        meson test --setup=valgrind
-
-  Ubuntu-no-curl:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-    - name: Install Dependencies
-      run: sudo apt-get install -y meson valgrind
-    - run: |
-        meson _build
-        cd _build
-        ninja -v
-        ninja test
+        meson test
         meson test --setup=valgrind
 
   MacOS:

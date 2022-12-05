@@ -1,5 +1,9 @@
 aawordsearch ChangeLog
 
+2022-12-05
+
+  * implement https support with curl
+
 2022-12-02
 
   * use backup API (server) if primary fails
