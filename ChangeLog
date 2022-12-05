@@ -3,6 +3,7 @@ aawordsearch ChangeLog
 2022-12-05
 
   * implement https support with curl
+  * release v0.1.5
 
 2022-12-02
 
