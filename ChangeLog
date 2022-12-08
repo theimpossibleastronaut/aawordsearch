@@ -1,5 +1,9 @@
 aawordsearch ChangeLog
 
+2022-12-07
+
+  * remove alternate server
+
 2022-12-05
 
   * implement https support with curl

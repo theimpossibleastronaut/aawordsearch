@@ -93,7 +93,6 @@ const int N_DIRECTIONS = 8;
 
 const char *HOST[] = {
   "random-word-api.herokuapp.com",
-  "random-word-api-aa.herokuapp.com",
   NULL
 };
 
